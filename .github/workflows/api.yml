@@ -12,9 +12,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  detect:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('apps/api/composer.json') != '' }}
+    outputs:
+      present: ${{ steps.check.outputs.present }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { sparse-checkout: "apps/api" }
+      - id: check
+        run: |
+          if [ -f "apps/api/composer.json" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+  check:
+    needs: detect
+    if: needs.detect.outputs.present == 'true'
+    runs-on: ubuntu-latest
 
     defaults:
       run:
