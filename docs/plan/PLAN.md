@@ -14,12 +14,12 @@ This plan turns the product specification into GitHub milestones and issues. It 
 
 | Milestone | Target date | Issues | Scope |
 |---|---|---|---|
-| **M0 · Foundations** | 2026-12-20 | 25 | Repository, CI/CD, staging in the EU region, Laravel/Nuxt/Flutter skeletons, tenancy, auth, design system, Go service skeletons, Meta Tech Provider application. |
-| **M1 · Launch α · WhatsApp, inbox & contacts** | 2027-01-31 | 57 | A seller connects WhatsApp through Embedded Signup and the team answers customers in a shared inbox. Contacts, teams and roles, Arabic-first UI, waitlist landing page. |
-| **M2 · Launch β · Orders & confirmation** | 2027-03-07 | 18 | Store connectors, order card, confirmation engine and board, refusal risk score, address normalisation, selling in chat. |
+| **M0 · Foundations** | 2026-12-20 | 26 | Repository, CI/CD, staging in the EU region, Laravel/Nuxt/Flutter skeletons, tenancy, auth, design system, Go service skeletons, Meta Tech Provider application. |
+| **M1 · Launch α · WhatsApp, inbox & contacts** | 2027-01-31 | 60 | A seller connects WhatsApp through Embedded Signup and the team answers customers in a shared inbox. Contacts, teams and roles, Arabic-first UI, waitlist landing page. |
+| **M2 · Launch β · Orders & confirmation** | 2027-03-07 | 22 | Store connectors, order card, confirmation engine and board, refusal risk score, address normalisation, selling in chat. |
 | **M3 · Launch γ · Campaigns, costs, analytics & billing** | 2027-04-11 | 34 | Broadcasts with cost estimate, cost meter and budget caps, owner dashboard and reports, plans with order bundle and usage meter, recipes, Messaging API. |
-| **M4 · Public launch · Mobile, landing & readiness** | 2027-05-16 | 31 | Mobile apps in the stores, full landing page with pricing, security and privacy basics, pilot with 10–20 sellers, load and security tests, go-live. |
-| **M5 · Growth 1 · Deposits, couriers & true profit** | 2027-07-11 | 43 | Deposits and payment gateways, call queue and confirmation ladder, courier integrations and scorecard, delivery rescue, true profit per order. |
+| **M4 · Public launch · Mobile, landing & readiness** | 2027-05-16 | 33 | Mobile apps in the stores, full landing page with pricing, security and privacy basics, pilot with 10–20 sellers, load and security tests, go-live. |
+| **M5 · Growth 1 · Deposits, couriers & true profit** | 2027-07-11 | 44 | Deposits and payment gateways, call queue and confirmation ladder, courier integrations and scorecard, delivery rescue, true profit per order. |
 | **M6 · Growth 2 · Automations, AI agent & campaigns** | 2027-09-05 | 35 | Visual flow builder, AI agent with dialects and order actions, advanced campaigns, inbox AI assist. |
 | **M7 · Growth 3 · Teams, developers, Gulf & mobile** | 2027-10-31 | 32 | Public API and webhooks, supervisor tools, multiple workspaces, Salla and Zid, Gulf localisation, mobile offline and dashboard. |
 | **M8 · Scale** | 2028-02-28 | 30 | Voice confirmation, shared risk network (after legal clearance), partners and white label, new channels, regional hosting, SSO. |
@@ -29,14 +29,14 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 ## Numbers
 
 - Epics: **22**
-- Issues: **305** (267 features, 25 technical, 13 business/QA tasks)
-- Api: 252 issues
+- Issues: **316** (273 features, 25 technical, 18 business/QA tasks)
+- Api: 260 issues
 - Design: 2 issues
 - Infra: 16 issues
 - Landing: 28 issues
 - Mobile: 39 issues
-- Services: 15 issues
-- Web: 230 issues
+- Services: 18 issues
+- Web: 234 issues
 
 ## Requirements (non-functional)
 
@@ -84,6 +84,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Company, tax and bank setup** — P0 · 
 - **Meta Business verification** — P0 · 
 - **Trademark and domain protection** — P0 · 
+- **Choose the MVP WhatsApp provider (BSP) and sign the partner agreement** — P0 · 
 - **Encryption** — P0 · api, infra
 
 ### M1 · Launch α · WhatsApp, inbox & contacts
@@ -127,10 +128,12 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Spam and block list** — P0 · api, web
 - **Tags, status and priority** — P0 · api, web, mobile
 - **Working hours and shifts** — P0 · api, web
+- **Shopify: request Protected Customer Data access (Level 2)** — P0 · 
 - **Landing: brand copy in Arabic and English** — P1 · landing
 - **Landing: scaffold `apps/landing` (Nuxt static + content)** — P0 · landing
 - **Landing: waitlist page with double opt-in** — P0 · landing
 - **Meta Tech Provider application and App Review** — P0 · 
+- **BSP adapter: onboarding, messaging, templates and webhooks** — P0 · api, services, web
 - **Coexistence mode** — P0 · api, web
 - **Contact import** — P0 · api, web
 - **Embedded signup** — P0 · api, web
@@ -139,6 +142,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Setup checklist** — P0 · api, web
 - **Template library** — P0 · api, web
 - **Template manager** — P0 · api, web
+- **WhatsApp provider abstraction: BSP now, Meta Cloud API later** — P0 · api, services
 - **Agent status and capacity** — P1 · api, web
 - **Audit log** — P1 · api, web
 - **Data masking** — P1 · api, web
@@ -153,6 +157,10 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **EasyOrders** — P0 · api, web
 - **Google Sheets sync** — P0 · api, web
 - **Shopify** — P0 · api, web
+- **Shopify app: Partner app, OAuth install and GraphQL Admin API client** — P0 · api
+- **Shopify: embedded app pages in the Shopify admin** — P1 · web
+- **Shopify: mandatory privacy webhooks** — P0 · api
+- **Shopify: pilot installs through custom distribution** — P0 · api
 - **WooCommerce** — P0 · api, web
 - **Address capture** — P0 · api, web
 - **Address confidence check** — P0 · api, web
@@ -212,6 +220,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Setup service** — P1 · web
 - **Mobile: Drift local database and sync** — P1 · mobile, api
 - **Mobile: push notifications (FCM / APNs)** — P0 · mobile, api
+- **Shopify App Store listing, review and billing** — P0 · api, web
 - **Landing: SEO and social** — P1 · landing
 - **Landing: analytics, pixel and conversion tracking** — P1 · landing
 - **Landing: contact sales and demo booking** — P1 · landing
@@ -234,6 +243,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Notification control** — P1 · api, mobile
 - **Orders on mobile** — P1 · api, mobile
 - **Quick replies and templates** — P1 · api, mobile
+- **Meta Cloud API adapter and Embedded Signup under Trik's own Meta app** — P0 · api, services, web
 - **Backups** — P1 · infra
 - **Policy guardrails** — P1 · api, infra
 - **Status page** — P1 · infra, landing
@@ -263,6 +273,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **Landing: blog and resources** — P2 · landing
 - **Landing: case studies from pilot sellers** — P2 · landing
 - **Landing: public changelog page** — P2 · landing
+- **Migrate MVP sellers from the BSP to Trik's Tech Provider** — P1 · api
 - **Agent call queue** — P1 · api, web, mobile
 - **Confirmation ladder** — P1 · api, web
 - **Courier handoff** — P1 · api, web

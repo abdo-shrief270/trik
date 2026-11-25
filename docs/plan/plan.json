@@ -5028,6 +5028,166 @@
    ],
    "milestone": "M4",
    "parent": "epic-launch"
+  },
+  {
+   "key": "wa-bsp-choose",
+   "title": "Choose the MVP WhatsApp provider (BSP) and sign the partner agreement",
+   "body": "## What\n\nUntil Trik is an approved Meta Tech Provider, sellers connect their numbers through a Business Solution Provider's partner programme. Pick one and sign up.\n\n## Acceptance criteria\n\n- [ ] Partner API lets Trik onboard *client* numbers (integrated/embedded onboarding), not only our own\n- [ ] Supports coexistence with the WhatsApp Business app\n- [ ] Meta fees billed at Meta's rate, ideally paid by the seller directly (ADR 0003)\n- [ ] Per-number fee fits the Starter plan margin\n- [ ] Written exit path: numbers and approved templates can migrate to Trik's own Tech Provider later\n\n## Tasks\n\n- [ ] Compare 360dialog Partner, Gupshup, Twilio, Infobip (and any local BSP) on the criteria below\n- [ ] Confirm Egypt/KSA support and payment terms\n- [ ] Sign partner agreement, get sandbox\n- [ ] Record the decision as ADR 0009\n",
+   "labels": [
+    "type:task",
+    "area:business",
+    "phase:launch",
+    "P0",
+    "module:onboarding"
+   ],
+   "milestone": "M0",
+   "parent": "epic-onboarding"
+  },
+  {
+   "key": "wa-provider-abstraction",
+   "title": "WhatsApp provider abstraction: BSP now, Meta Cloud API later",
+   "body": "## What\n\nAll WhatsApp calls go through one interface so the MVP runs on a BSP and later switches to Trik's own Cloud API access per number, with no feature code changes.\n\n## Acceptance criteria\n\n- [ ] Switching a number's provider needs only a config change\n- [ ] Both adapters pass the same contract tests\n\n## Tasks\n\n- [ ] `WhatsAppProvider` contract: send text/template/interactive/media, mark read, templates CRUD, media download, number info, onboarding\n- [ ] `provider` + credentials stored per phone number (encrypted)\n- [ ] Webhook normaliser in `webhook-intake` maps BSP and Meta payloads to the same `message.received.v1` / status events\n- [ ] Shared contract test suite every adapter must pass\n- [ ] Feature flags for capabilities a provider lacks\n",
+   "labels": [
+    "type:feature",
+    "platform:api",
+    "platform:services",
+    "phase:launch",
+    "P0",
+    "module:onboarding"
+   ],
+   "milestone": "M1",
+   "parent": "epic-onboarding"
+  },
+  {
+   "key": "wa-bsp-adapter",
+   "title": "BSP adapter: onboarding, messaging, templates and webhooks",
+   "body": "## What\n\nImplement the provider contract for the chosen BSP so pilot sellers can connect and use their numbers.\n\n## Tasks\n\n- [ ] Client onboarding flow (BSP's embedded/integrated onboarding) inside Trik's onboarding screen\n- [ ] Messaging + templates + media endpoints\n- [ ] Webhook signature verification for the BSP\n- [ ] Rate limits and retries per BSP rules in `dispatcher`\n- [ ] Per-number cost data import for the cost meter\n",
+   "labels": [
+    "type:feature",
+    "platform:api",
+    "platform:services",
+    "platform:web",
+    "phase:launch",
+    "P0",
+    "module:onboarding"
+   ],
+   "milestone": "M1",
+   "parent": "epic-onboarding"
+  },
+  {
+   "key": "wa-cloud-adapter",
+   "title": "Meta Cloud API adapter and Embedded Signup under Trik's own Meta app",
+   "body": "## What\n\nAfter Tech Provider approval, onboard new sellers directly with Meta Embedded Signup and the Cloud API.\n\n## Tasks\n\n- [ ] Cloud API adapter passing the contract tests\n- [ ] Embedded Signup with Trik's Meta app (config ID, system user token)\n- [ ] Webhook app subscription per WABA\n- [ ] New sellers default to Cloud API; BSP stays for existing ones until migrated\n",
+   "labels": [
+    "type:feature",
+    "platform:api",
+    "platform:services",
+    "platform:web",
+    "phase:launch",
+    "P0",
+    "module:onboarding"
+   ],
+   "milestone": "M4",
+   "parent": "epic-onboarding"
+  },
+  {
+   "key": "wa-migrate-off-bsp",
+   "title": "Migrate MVP sellers from the BSP to Trik's Tech Provider",
+   "body": "## What\n\nMove every pilot number from the BSP to Trik's own Meta access without downtime or losing templates.\n\n## Tasks\n\n- [ ] Migration runbook per number (Meta number migration between providers)\n- [ ] Template migration / re-approval check\n- [ ] Maintenance window and seller communication in Arabic\n- [ ] Switch provider flag per number and verify end to end\n- [ ] Cancel BSP channels after migration\n",
+   "labels": [
+    "type:task",
+    "platform:api",
+    "phase:growth",
+    "P1",
+    "module:onboarding"
+   ],
+   "milestone": "M5",
+   "parent": "epic-onboarding"
+  },
+  {
+   "key": "shopify-app-setup",
+   "title": "Shopify app: Partner app, OAuth install and GraphQL Admin API client",
+   "body": "## What\n\nTrik connects to Shopify as an app: the app is what grants Admin API access. Build one app used for pilots (custom distribution) and later the App Store.\n\n## Acceptance criteria\n\n- [ ] Install from a link completes in under a minute\n- [ ] Webhooks verified with HMAC and processed idempotently\n- [ ] Uses GraphQL Admin API only (no REST)\n\n## Tasks\n\n- [ ] Create the app in the Shopify Partner / Dev Dashboard\n- [ ] OAuth install + token storage per shop (encrypted)\n- [ ] GraphQL Admin API client with cost-based rate limiting\n- [ ] Webhook subscriptions: orders/create, orders/updated, fulfillments, products, app/uninstalled\n- [ ] Backfill last 90 days of orders with bulk operations\n",
+   "labels": [
+    "type:feature",
+    "platform:api",
+    "phase:launch",
+    "P0",
+    "module:integrations"
+   ],
+   "milestone": "M2",
+   "parent": "epic-integrations"
+  },
+  {
+   "key": "shopify-pcd",
+   "title": "Shopify: request Protected Customer Data access (Level 2)",
+   "body": "## What\n\nOrders are useless to Trik without customer name, phone and address, which are protected customer data. Request access early; approval takes time.\n\n## Tasks\n\n- [ ] Fill the data-protection questionnaire (purpose, retention, encryption, access control)\n- [ ] Request Level 1 + Level 2 fields: name, email, phone, address\n- [ ] Document compliance in `docs/legal`\n",
+   "labels": [
+    "type:task",
+    "area:legal",
+    "phase:launch",
+    "P0",
+    "module:integrations"
+   ],
+   "milestone": "M1",
+   "parent": "epic-integrations"
+  },
+  {
+   "key": "shopify-privacy-webhooks",
+   "title": "Shopify: mandatory privacy webhooks",
+   "body": "## What\n\nHandle `customers/data_request`, `customers/redact` and `shop/redact`, required for every Shopify app.\n\n## Tasks\n\n- [ ] Endpoints with HMAC verification\n- [ ] Export and redaction jobs tied to Compliance module\n- [ ] Audit log entries\n",
+   "labels": [
+    "type:feature",
+    "platform:api",
+    "phase:launch",
+    "P0",
+    "module:integrations"
+   ],
+   "milestone": "M2",
+   "parent": "epic-integrations"
+  },
+  {
+   "key": "shopify-embedded-ui",
+   "title": "Shopify: embedded app pages in the Shopify admin",
+   "body": "## What\n\nA small embedded page inside Shopify admin: connection status, WhatsApp number, confirmation settings, and a button to open Trik.\n\n## Tasks\n\n- [ ] App Bridge + Polaris web components\n- [ ] Session-token auth\n- [ ] Arabic and English\n",
+   "labels": [
+    "type:feature",
+    "platform:web",
+    "phase:launch",
+    "P1",
+    "module:integrations"
+   ],
+   "milestone": "M2",
+   "parent": "epic-integrations"
+  },
+  {
+   "key": "shopify-pilot-installs",
+   "title": "Shopify: pilot installs through custom distribution",
+   "body": "## What\n\nBefore the App Store listing, pilot stores install through custom-distribution install links. A custom-distribution app installs on one store (or one Plus organisation), so pilots need one app configuration per store.\n\n## Tasks\n\n- [ ] Script to create one app config per pilot store (Shopify CLI `shopify.app.<store>.toml`)\n- [ ] IP allowlist set up (required for custom apps on stores outside our organisation from 20 Nov 2026)\n- [ ] Install guide for sellers in Arabic\n",
+   "labels": [
+    "type:task",
+    "platform:api",
+    "phase:launch",
+    "P0",
+    "module:integrations"
+   ],
+   "milestone": "M2",
+   "parent": "epic-integrations"
+  },
+  {
+   "key": "shopify-app-store",
+   "title": "Shopify App Store listing, review and billing",
+   "body": "## What\n\nPublish the public app so any Shopify seller can install Trik.\n\n## Tasks\n\n- [ ] Meet the App Store requirements checklist (performance, Polaris, GraphQL, privacy)\n- [ ] Listing in Arabic and English with screenshots\n- [ ] Decide billing: App Store apps charge merchants through the Shopify Billing API\n- [ ] Submit for review and fix feedback\n",
+   "labels": [
+    "type:task",
+    "platform:api",
+    "platform:web",
+    "phase:launch",
+    "P0",
+    "module:integrations"
+   ],
+   "milestone": "M4",
+   "parent": "epic-integrations"
   }
  ]
 }
