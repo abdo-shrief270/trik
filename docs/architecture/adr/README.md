@@ -10,5 +10,6 @@
 | [0006](0006-event-log-and-outbox.md) | Redpanda event log with a transactional outbox | Accepted |
 | [0007](0007-metered-processed-orders.md) | Plans include a bundle of processed orders | Accepted |
 | [0008](0008-shared-risk-network-opt-in.md) | Shared risk network: opt-in, outcomes only, after legal clearance | Accepted |
+| [0009](0009-mvp-on-a-bsp.md) | Run the MVP on a WhatsApp BSP until Trik is a Tech Provider | Proposed |
 
 New ADR: copy `template.md`, take the next number, open a pull request.
