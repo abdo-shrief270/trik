@@ -1,0 +1,11 @@
+# Default owner for everything
+*                         @abdo-shrief270
+
+# Areas (replace with team handles as the team grows)
+/apps/api/                @abdo-shrief270
+/apps/web/                @abdo-shrief270
+/apps/mobile/             @abdo-shrief270
+/services/                @abdo-shrief270
+/packages/contracts/      @abdo-shrief270
+/infra/                   @abdo-shrief270
+/docs/architecture/adr/   @abdo-shrief270

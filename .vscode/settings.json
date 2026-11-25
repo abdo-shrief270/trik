@@ -1,0 +1,10 @@
+{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/vendor": true,
+    "**/.nuxt": true,
+    "**/.dart_tool": true
+  }
+}

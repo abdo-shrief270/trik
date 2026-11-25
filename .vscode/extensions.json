@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "editorconfig.editorconfig",
+    "bmewburn.vscode-intelephense-client",
+    "open-southeners.laravel-pint",
+    "vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "golang.go",
+    "dart-code.flutter",
+    "redhat.vscode-yaml",
+    "42crunch.vscode-openapi"
+  ]
+}

@@ -1,0 +1,27 @@
+name: Services
+
+on:
+  pull_request:
+    paths: ["services/**", ".github/workflows/services.yml"]
+  push:
+    branches: [main]
+    paths: ["services/**"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [webhook-intake, message-writer, dispatcher]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/${{ matrix.service }}/go.mod
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+      - run: go vet ./...
+      - run: go test -race ./...
