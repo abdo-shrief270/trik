@@ -22,6 +22,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: services/${{ matrix.service }}/go.mod
-          cache-dependency-path: services/${{ matrix.service }}/go.sum
+          cache: false   # no third-party modules yet; enable with go.sum later
       - run: go vet ./...
       - run: go test -race ./...
