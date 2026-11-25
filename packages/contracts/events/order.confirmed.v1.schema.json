@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trik.chat/events/order.confirmed.v1.schema.json",
+  "title": "order.confirmed.v1",
+  "description": "An order was confirmed by the customer or an agent.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema",
+    "occurred_at",
+    "workspace_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "UUIDv7. Consumers deduplicate on it."
+    },
+    "schema": {
+      "const": "order.confirmed.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace_id": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "channel"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "call",
+            "sms",
+            "agent"
+          ]
+        },
+        "confirmed_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "risk_score": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "../../../../../packages/design-tokens/tokens.css";
+
+@theme {
+  --color-ink: var(--trik-color-ink);
+  --color-indigo: var(--trik-color-indigo);
+  --color-lime: var(--trik-color-lime);
+  --color-paper: var(--trik-color-paper);
+  --font-display: var(--trik-font-display);
+  --font-sans: var(--trik-font-ui);
+}
+
+html[dir="rtl"] body { font-family: var(--trik-font-arabic); }
+body { background: var(--trik-color-paper); color: var(--trik-color-ink); }

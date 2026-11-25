@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Trik API
+  version: 1.0.0-draft
+  description: Trik public and app API. Draft.
+servers:
+  - url: https://api.trik.chat/v1
+security:
+  - bearerAuth: []
+paths:
+  /orders/{orderId}:
+    get:
+      summary: Get an order
+      operationId: getOrder
+      tags: [Orders]
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{orderId}/confirm:
+    post:
+      summary: Confirm an order
+      operationId: confirmOrder
+      tags: [Confirmation]
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, maxLength: 64 }
+      responses:
+        "200":
+          description: The confirmed order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "409": { description: The order can no longer be confirmed }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    OrderId:
+      in: path
+      name: orderId
+      required: true
+      schema: { type: string }
+  responses:
+    NotFound:
+      description: Not found
+  schemas:
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: integer, description: Minor units (piastres, halalas) }
+        currency: { type: string, example: EGP }
+    Order:
+      type: object
+      required: [id, number, status, total]
+      properties:
+        id: { type: string }
+        number: { type: string, example: "1048" }
+        status:
+          type: string
+          enum: [new, confirming, awaiting_deposit, confirmed, ready_to_ship, shipped, delivered, returned, cancelled]
+        total: { $ref: "#/components/schemas/Money" }
+        cod_amount: { $ref: "#/components/schemas/Money" }
+        risk_score: { type: integer, minimum: 0, maximum: 100 }
+        confirmed_at: { type: string, format: date-time, nullable: true }

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trik.chat/events/message.received.v1.schema.json",
+  "title": "message.received.v1",
+  "description": "An inbound message arrived on any channel.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema",
+    "occurred_at",
+    "workspace_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "UUIDv7. Consumers deduplicate on it."
+    },
+    "schema": {
+      "const": "message.received.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace_id": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "message_id",
+        "conversation_id",
+        "channel",
+        "provider_message_id"
+      ],
+      "properties": {
+        "message_id": {
+          "type": "string"
+        },
+        "conversation_id": {
+          "type": "string"
+        },
+        "channel": {
+          "enum": [
+            "whatsapp",
+            "instagram",
+            "messenger",
+            "webchat",
+            "sms",
+            "email"
+          ]
+        },
+        "provider_message_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

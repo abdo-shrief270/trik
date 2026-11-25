@@ -1,0 +1,17 @@
+{
+  "brand": {
+    "name": "تريك",
+    "tagline": "العلامة الثالثة."
+  },
+  "order": {
+    "confirm": "تأكيد الطلب",
+    "trikd": "اتأكّد",
+    "awaitingDeposit": "بانتظار العربون",
+    "risk": "مخاطر {score}"
+  },
+  "inbox": {
+    "title": "الوارد",
+    "assignedToMe": "المسندة لي",
+    "unassigned": "غير مسندة"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "brand": {
+    "name": "Trik",
+    "tagline": "The third tick."
+  },
+  "order": {
+    "confirm": "Confirm order",
+    "trikd": "Trik'd",
+    "awaitingDeposit": "Awaiting deposit",
+    "risk": "Risk {score}"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "assignedToMe": "Assigned to me",
+    "unassigned": "Unassigned"
+  }
+}

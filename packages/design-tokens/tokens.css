@@ -1,0 +1,33 @@
+/* Generated from tokens.json. Do not edit by hand. */
+:root {
+  --trik-color-ink: #14121F;
+  --trik-color-indigo: #4F3BF0;
+  --trik-color-indigo-strong: #3B2BC4;
+  --trik-color-indigo-soft: #EFEDFE;
+  --trik-color-lime: #B8F25B;
+  --trik-color-paper: #F7F6F2;
+  --trik-color-white: #FFFFFF;
+  --trik-color-muted: #5F6673;
+  --trik-color-border: #E5E7EB;
+  --trik-color-success: #146C3F;
+  --trik-color-success-bg: #E6F4EC;
+  --trik-color-warning: #7A4F00;
+  --trik-color-warning-bg: #FFF4DB;
+  --trik-color-danger: #B42318;
+  --trik-color-danger-bg: #FDECEA;
+  --trik-font-display: 'Space Grotesk', system-ui, sans-serif;
+  --trik-font-ui: 'Inter', system-ui, sans-serif;
+  --trik-font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --trik-radius-sm: 4px;
+  --trik-radius-md: 6px;
+  --trik-radius-lg: 8px;
+  --trik-radius-xl: 16px;
+  --trik-space-1: 4px;
+  --trik-space-2: 8px;
+  --trik-space-3: 12px;
+  --trik-space-4: 16px;
+  --trik-space-5: 20px;
+  --trik-space-6: 24px;
+  --trik-space-8: 32px;
+  --trik-space-10: 40px;
+}

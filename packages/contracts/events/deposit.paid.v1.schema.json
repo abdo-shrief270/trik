@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.trik.chat/events/deposit.paid.v1.schema.json",
+  "title": "deposit.paid.v1",
+  "description": "A customer paid a deposit into the seller's own gateway account.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "schema",
+    "occurred_at",
+    "workspace_id",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "UUIDv7. Consumers deduplicate on it."
+    },
+    "schema": {
+      "const": "deposit.paid.v1"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspace_id": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "gateway",
+        "amount_minor",
+        "currency"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "gateway": {
+          "enum": [
+            "paymob",
+            "kashier",
+            "fawry"
+          ]
+        },
+        "amount_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "gateway_reference": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

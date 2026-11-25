@@ -1,0 +1,50 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# PHP / Laravel
+apps/api/vendor/
+apps/api/storage/*.key
+apps/api/.phpunit.cache/
+apps/api/public/hot
+apps/api/public/storage
+
+# Node / Nuxt
+node_modules/
+.nuxt/
+.output/
+dist/
+coverage/
+*.log
+
+# Go
+services/*/bin/
+services/*/tmp/
+
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins*
+apps/mobile/ios/Pods/
+apps/mobile/android/.gradle/
+
+# Infra
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/example.tfvars
+
+# Claude desktop app output folder
+Claude outputs/

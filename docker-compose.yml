@@ -1,0 +1,133 @@
+# Local development stack for Trik. Not for production.
+# Start: make up   ·   Stop: make down   ·   Reset data: make reset
+name: ${COMPOSE_PROJECT_NAME:-trik}
+
+x-healthcheck: &hc
+  interval: 10s
+  timeout: 5s
+  retries: 10
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      <<: *hc
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest   # pin to a tested tag before staging
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 25
+      AUTH_TYPE: scram-sha-256
+    ports: ["${PGBOUNCER_PORT:-6432}:5432"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  redis-cache:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["${REDIS_CACHE_PORT:-6379}:6379"]
+    healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
+
+  redis-queue:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["${REDIS_QUEUE_PORT:-6380}:6379"]
+    volumes: [redis_queue_data:/data]
+    healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
+
+  redis-lock:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
+    ports: ["${REDIS_LOCK_PORT:-6381}:6379"]
+    healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda start
+      - --mode dev-container
+      - --smp 1
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:${REDPANDA_KAFKA_PORT:-19092}
+    ports: ["${REDPANDA_KAFKA_PORT:-19092}:19092"]
+    volumes: [redpanda_data:/var/lib/redpanda/data]
+    healthcheck: { <<: *hc, test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"] }
+
+  redpanda-console:
+    image: redpandadata/console:v2.7.2
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports: ["${REDPANDA_CONSOLE_PORT:-8085}:8080"]
+    depends_on:
+      redpanda: { condition: service_healthy }
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: trik_analytics
+    ports: ["${CLICKHOUSE_HTTP_PORT:-8123}:8123"]
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./infra/docker/clickhouse/init:/docker-entrypoint-initdb.d:ro
+    ulimits: { nofile: { soft: 262144, hard: 262144 } }
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      MEILI_ENV: development
+    ports: ["${MEILI_PORT:-7700}:7700"]
+    volumes: [meili_data:/meili_data]
+
+  centrifugo:
+    image: centrifugo/centrifugo:v5
+    command: centrifugo --config=/centrifugo/config.json
+    environment:
+      CENTRIFUGO_API_KEY: ${CENTRIFUGO_API_KEY}
+      CENTRIFUGO_TOKEN_HMAC_SECRET_KEY: ${CENTRIFUGO_TOKEN_HMAC_SECRET}
+      CENTRIFUGO_ADMIN_PASSWORD: ${CENTRIFUGO_ADMIN_PASSWORD}
+      CENTRIFUGO_ADMIN_SECRET: ${CENTRIFUGO_TOKEN_HMAC_SECRET}
+    ports: ["${CENTRIFUGO_PORT:-8000}:8000"]
+    volumes: [./infra/docker/centrifugo/config.json:/centrifugo/config.json:ro]
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  minio:
+    image: minio/minio:latest   # pin to a tested release before staging
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes: [minio_data:/data]
+
+volumes:
+  pg_data:
+  redis_queue_data:
+  redpanda_data:
+  clickhouse_data:
+  meili_data:
+  minio_data:
