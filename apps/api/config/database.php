@@ -98,7 +98,9 @@ return [
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             // The app always runs as this restricted role, so row-level security applies.
+            // Sent as a startup option (-c role=…), so it holds from the first query.
             'role' => env('DB_ROLE', 'trik_app'),
+            'server_options' => array_filter(['role' => env('DB_ROLE', 'trik_app')]),
         ],
 
         // Owns the tables. Used for migrations and for system work across workspaces only.

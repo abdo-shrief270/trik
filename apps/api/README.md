@@ -61,7 +61,7 @@ Two database connections:
 
 | Connection | Runs as | Used for |
 |---|---|---|
-| `pgsql` (default) | `trik_app`, set with `SET ROLE` on connect (`DB_ROLE`) | everything the app does |
+| `pgsql` (default) | `trik_app`, set at connect time with `-c role=…` (`DB_ROLE`) | everything the app does |
 | `owner` | the table owner | migrations and cross-workspace system work only |
 
 How a tenant table is protected:
@@ -87,6 +87,7 @@ final class Order extends Model
   With no workspace active, Eloquent throws `MissingWorkspaceContext` and raw SQL sees no rows: it **fails closed**.
 - Queued jobs carry the workspace in their payload and run inside it.
 - A test fails the build if any table with a `workspace_id` column does not have row-level security on.
+- `/readyz` fails if the app connection is not running as `DB_ROLE`, so a pooler that drops the role option can't silently turn RLS off.
 - PgBouncer must run in **session** pooling mode while the setting is session-level (switch to `SET LOCAL` per transaction before moving to transaction pooling).
 
 ## Sign-in
