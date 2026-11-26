@@ -39,7 +39,9 @@ final class AppServiceProvider extends ServiceProvider
 
         $this->bootDatabaseRole();
 
-        Gate::before(fn (?Authenticatable $user, string $ability) => $this->app->make(PermissionGate::class)->before($user, $ability));
+        // app(), not $this->app: under Octane each request runs in its own container copy, and the
+        // per-request (scoped) gate must come from it, or memoised grants would leak across requests.
+        Gate::before(fn (?Authenticatable $user, string $ability) => app(PermissionGate::class)->before($user, $ability));
 
         $this->app->make(QueueTenancy::class)->register($this->app->make('queue'), $this->app->make('events'));
 

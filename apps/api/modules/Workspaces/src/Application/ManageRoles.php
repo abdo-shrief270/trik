@@ -7,6 +7,8 @@ namespace Modules\Workspaces\Application;
 use App\Support\Authorization\MemberAccess;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Http\Problem;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Auth;
 use Modules\Workspaces\Infrastructure\Models\CustomRole;
 use Modules\Workspaces\Infrastructure\Models\WorkspaceMember;
 
@@ -20,7 +22,11 @@ final class ManageRoles
 {
     private const FORBIDDEN_GRANTS = ['*', 'workspace.*', 'workspace.workspace.delete'];
 
-    public function __construct(private readonly PermissionRegistry $registry) {}
+    public function __construct(
+        private readonly PermissionRegistry $registry,
+        private readonly AuditLog $audit,
+        private readonly TenantContext $context,
+    ) {}
 
     /** @param list<string> $permissions */
     public function create(MemberAccess $actor, string $name, ?string $description, array $permissions): CustomRole
@@ -29,7 +35,10 @@ final class ManageRoles
         $clean = $this->clean($permissions);
         $this->assertWithinCeiling($actor, $clean);
 
-        return CustomRole::query()->create(['name' => $name, 'description' => $description, 'permissions' => $clean]);
+        $role = CustomRole::query()->create(['name' => $name, 'description' => $description, 'permissions' => $clean]);
+        $this->log('role.created', ['role_id' => $role->id, 'name' => $name, 'permissions' => $clean]);
+
+        return $role;
     }
 
     /** @param list<string>|null $permissions */
@@ -53,6 +62,7 @@ final class ManageRoles
         }
 
         $role->save();
+        $this->log('role.updated', ['role_id' => $role->id, 'name' => $role->name, 'permissions' => $role->permissions]);
 
         return $role;
     }
@@ -66,6 +76,14 @@ final class ManageRoles
         }
 
         $role->delete();
+        $this->log('role.deleted', ['role_id' => $role->id, 'name' => $role->name]);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function log(string $action, array $data): void
+    {
+        $id = Auth::id();
+        $this->audit->workspace($this->context->require(), $action, is_string($id) ? $id : null, data: $data);
     }
 
     /**

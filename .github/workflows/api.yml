@@ -2,7 +2,7 @@ name: API
 
 on:
   pull_request:
-    paths: ["apps/api/**", ".github/workflows/api.yml"]
+    paths: ["apps/api/**", "tests/security/**", "packages/contracts/**", ".github/workflows/api.yml"]
   push:
     branches: [main]
     paths: ["apps/api/**"]
@@ -50,7 +50,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.5"
-          extensions: pdo_pgsql, redis, intl, bcmath
+          extensions: pdo_pgsql, redis, intl, bcmath, swoole
           coverage: none
       - run: composer install --no-interaction --prefer-dist
       - run: cp .env.example .env && php artisan key:generate
@@ -65,3 +65,28 @@ jobs:
           DB_PASSWORD: trik
           DB_PORT: 5432
           REDIS_HOST: 127.0.0.1
+
+      # Attack probes against the app running under Octane, the way it runs in production.
+      # (Unit tests run without Octane and can't catch per-request container bugs.)
+      - name: Security probes under Octane
+        env:
+          APP_ENV: staging
+          APP_DEBUG: "false"
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: trik_probe
+          DB_USERNAME: trik
+          DB_PASSWORD: trik
+          DB_PORT: 5432
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: redis
+          OCTANE_SERVER: swoole
+          PGPASSWORD: trik
+        run: |
+          psql -h 127.0.0.1 -U trik -d trik_test -c "create database trik_probe"
+          php artisan migrate --database=owner --force
+          php artisan octane:start --server=swoole --workers=2 --port=8099 > /tmp/octane.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8099/healthz > /dev/null && break; sleep 1; done
+          pip install --quiet requests
+          python3 ../../tests/security/api_probe.py http://127.0.0.1:8099 --db "host=127.0.0.1 port=5432 user=trik password=trik dbname=trik_probe" || { tail -50 /tmp/octane.log; exit 1; }

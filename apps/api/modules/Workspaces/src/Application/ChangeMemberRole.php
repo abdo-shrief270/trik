@@ -25,6 +25,7 @@ final class ChangeMemberRole
     public function __construct(
         private readonly PermissionRegistry $registry,
         private readonly WorkspacePermissions $permissions,
+        private readonly AuditLog $audit,
     ) {}
 
     public function handle(string $workspaceId, string $actorId, string $targetId, WorkspaceRole $role, ?string $customRoleId = null): WorkspaceMember
@@ -67,7 +68,9 @@ final class ChangeMemberRole
                 $this->assertAnotherOwner($workspaceId, $targetId);
             }
 
+            $from = $target->role;
             $target->forceFill(['role' => $role, 'custom_role_id' => $customRoleId])->save();
+            $this->audit->workspace($workspaceId, 'member.role_changed', $actorId, $targetId, ['from' => $from->value, 'to' => $role->value, 'custom_role_id' => $customRoleId]);
 
             return $target;
         });
@@ -92,6 +95,7 @@ final class ChangeMemberRole
             }
 
             $target->delete();
+            $this->audit->workspace($workspaceId, $actorId === $targetId ? 'member.left' : 'member.removed', $actorId, $targetId);
         });
     }
 

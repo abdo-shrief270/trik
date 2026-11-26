@@ -110,6 +110,17 @@ admin = member(A["ws"], "admin")
 r = call("POST", "/v1/workspace/roles", admin["token"], A["ws"], {"name": f"billing-{uuid.uuid4().hex[:4]}", "permissions": ["billing.*"]})
 check("an admin cannot create a role with powers admins lack (billing)", r.status_code in (403, 422), f"{r.status_code}: created a billing.* role")
 
+# ---------------- organizations (ADR 0012)
+r = call("GET", "/v1/auth/me", A["token"])
+org_a = r.json()["organizations"][0]["id"]
+r = requests.get(BASE + "/v1/organization", headers={"Accept": "application/json", "Authorization": f"Bearer {B['token']}", "X-Organization-Id": org_a})
+check("cannot open another person's organization", r.status_code == 403, r.status_code)
+r = requests.post(BASE + f"/v1/organization/workspaces/{B['ws']}/members", json={"user_id": A["id"], "role": "agent"},
+                  headers={"Accept": "application/json", "Authorization": f"Bearer {A['token']}", "X-Organization-Id": org_a})
+check("cannot add people to another organization's workspace", r.status_code == 404, r.status_code)
+r = call("POST", "/v1/workspace/roles", A["token"], A["ws"], {"name": "org-sneak", "permissions": ["organization.members.manage"]})
+check("organization powers cannot go into a workspace role", r.status_code == 422, r.status_code)
+
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)

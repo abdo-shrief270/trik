@@ -20,7 +20,10 @@ use Modules\Workspaces\Infrastructure\Models\WorkspaceMember;
  */
 final class CreateWorkspace
 {
-    public function __construct(private readonly CreateOrganization $createOrganization) {}
+    public function __construct(
+        private readonly CreateOrganization $createOrganization,
+        private readonly AuditLog $audit,
+    ) {}
 
     public function handle(string $name, string $ownerId, string $organizationId): WorkspaceData
     {
@@ -50,6 +53,9 @@ final class CreateWorkspace
                 ['organization_id' => $organizationId, 'user_id' => $ownerId],
                 ['role' => OrganizationRole::Member],
             );
+
+            $this->audit->organization($organizationId, 'workspace.created', $ownerId, workspaceId: $workspace->id, data: ['name' => $name]);
+            $this->audit->workspace($workspace->id, 'workspace.created', $ownerId, data: ['name' => $name]);
 
             return new WorkspaceData($workspace->id, $workspace->name, $workspace->slug, WorkspaceRole::Owner, $organizationId);
         });
