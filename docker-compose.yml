@@ -14,7 +14,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
     volumes:
       - pg_data:/var/lib/postgresql   # PostgreSQL 18+ images keep data in a versioned subfolder
       - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -33,27 +33,27 @@ services:
       MAX_CLIENT_CONN: 500
       DEFAULT_POOL_SIZE: 25
       AUTH_TYPE: scram-sha-256
-    ports: ["${PGBOUNCER_PORT:-6432}:5432"]
+    ports: ["127.0.0.1:${PGBOUNCER_PORT:-6432}:5432"]
     depends_on:
       postgres: { condition: service_healthy }
 
   redis-cache:
     image: redis:8-alpine
     command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    ports: ["${REDIS_CACHE_PORT:-6379}:6379"]
+    ports: ["127.0.0.1:${REDIS_CACHE_PORT:-6379}:6379"]
     healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
 
   redis-queue:
     image: redis:8-alpine
     command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
-    ports: ["${REDIS_QUEUE_PORT:-6380}:6379"]
+    ports: ["127.0.0.1:${REDIS_QUEUE_PORT:-6380}:6379"]
     volumes: [redis_queue_data:/data]
     healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
 
   redis-lock:
     image: redis:8-alpine
     command: ["redis-server", "--maxmemory-policy", "noeviction"]
-    ports: ["${REDIS_LOCK_PORT:-6381}:6379"]
+    ports: ["127.0.0.1:${REDIS_LOCK_PORT:-6381}:6379"]
     healthcheck: { <<: *hc, test: ["CMD", "redis-cli", "ping"] }
 
   redpanda:
@@ -64,7 +64,7 @@ services:
       - --smp 1
       - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
       - --advertise-kafka-addr internal://redpanda:9092,external://localhost:${REDPANDA_KAFKA_PORT:-19092}
-    ports: ["${REDPANDA_KAFKA_PORT:-19092}:19092"]
+    ports: ["127.0.0.1:${REDPANDA_KAFKA_PORT:-19092}:19092"]
     volumes: [redpanda_data:/var/lib/redpanda/data]
     healthcheck: { <<: *hc, test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"] }
 
@@ -72,7 +72,7 @@ services:
     image: redpandadata/console:v3.15.0
     environment:
       KAFKA_BROKERS: redpanda:9092
-    ports: ["${REDPANDA_CONSOLE_PORT:-8085}:8080"]
+    ports: ["127.0.0.1:${REDPANDA_CONSOLE_PORT:-8085}:8080"]
     depends_on:
       redpanda: { condition: service_healthy }
 
@@ -82,7 +82,7 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       CLICKHOUSE_DB: trik_analytics
-    ports: ["${CLICKHOUSE_HTTP_PORT:-8123}:8123"]
+    ports: ["127.0.0.1:${CLICKHOUSE_HTTP_PORT:-8123}:8123"]
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - ./infra/docker/clickhouse/init:/docker-entrypoint-initdb.d:ro
@@ -93,7 +93,7 @@ services:
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
       MEILI_ENV: development
-    ports: ["${MEILI_PORT:-7700}:7700"]
+    ports: ["127.0.0.1:${MEILI_PORT:-7700}:7700"]
     volumes: [meili_data:/meili_data]
 
   centrifugo:
@@ -105,14 +105,14 @@ services:
       CENTRIFUGO_ADMIN_ENABLED: "true"
       CENTRIFUGO_ADMIN_PASSWORD: ${CENTRIFUGO_ADMIN_PASSWORD}
       CENTRIFUGO_ADMIN_SECRET: ${CENTRIFUGO_TOKEN_HMAC_SECRET}
-    ports: ["${CENTRIFUGO_PORT:-8000}:8000"]
+    ports: ["127.0.0.1:${CENTRIFUGO_PORT:-8000}:8000"]
     volumes: [./infra/docker/centrifugo/config.json:/centrifugo/config.json:ro]
 
   mailpit:
     image: axllent/mailpit:v1.34
     ports:
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
 
   minio:
     image: minio/minio:latest   # MinIO stopped publishing community images in 2025; replace with another S3-compatible store before staging
@@ -121,8 +121,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes: [minio_data:/data]
 
 volumes:

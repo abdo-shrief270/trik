@@ -84,6 +84,8 @@ return new class extends Migration
             SQL);
         DB::statement('create index whatsapp_messages_provider_idx on whatsapp_messages (number_id, provider_message_id) where provider_message_id is not null');
         DB::statement('create index whatsapp_messages_contact_idx on whatsapp_messages (workspace_id, contact_phone, created_at)');
+        // the message log, newest first (2M rows: 2.4 s without it, see docs/security/2026-11-review.md)
+        DB::statement('create index whatsapp_messages_number_created_idx on whatsapp_messages (number_id, created_at desc, id desc)');
 
         DB::statement(<<<'SQL'
             create table whatsapp_broadcast_sends (
@@ -111,7 +113,7 @@ return new class extends Migration
 
         foreach (self::PARTITIONED as $table) {
             RowLevelSecurity::enable($table);
-            MonthlyPartitions::ensure($table, now(), monthsAhead: 3);
+            MonthlyPartitions::ensure($table, now(), monthsAhead: 3, fillfactor: MonthlyPartitions::fillfactorFor($table));
         }
 
         DB::statement(<<<'SQL'
@@ -132,13 +134,13 @@ return new class extends Migration
         DB::statement(<<<'SQL'
             create or replace function whatsapp_webhook_route(p_number uuid)
             returns table (workspace_id uuid, provider varchar)
-            language sql stable security definer set search_path = public
+            language sql stable security definer set search_path = pg_catalog, public
             as $$ select n.workspace_id, n.provider from whatsapp_numbers n where n.id = p_number $$
             SQL);
         DB::statement(<<<'SQL'
             create or replace function whatsapp_webhook_route_external(p_provider varchar, p_external varchar)
             returns table (workspace_id uuid, number_id uuid)
-            language sql stable security definer set search_path = public
+            language sql stable security definer set search_path = pg_catalog, public
             as $$ select n.workspace_id, n.id from whatsapp_numbers n where n.provider = p_provider and n.external_id = p_external $$
             SQL);
 

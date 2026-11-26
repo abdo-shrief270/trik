@@ -212,6 +212,7 @@ final class WebhookBatchProcessor
             from v
             where t.number_id = v.number_id
               and t.provider_message_id = v.provider_message_id
+              and t.provider_message_id is not null
               and t.created_at >= now() - interval '%d days'
               {$extraWhere}
             returning {$idColumn}, t.workspace_id, t.number_id, t.provider_message_id, old.status as old_status, new.status as new_status

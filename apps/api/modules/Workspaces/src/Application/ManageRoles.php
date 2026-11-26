@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Workspaces\Application;
 
+use App\Support\Authorization\MemberAccess;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Http\Problem;
 use Modules\Workspaces\Infrastructure\Models\CustomRole;
@@ -11,7 +12,9 @@ use Modules\Workspaces\Infrastructure\Models\WorkspaceMember;
 
 /**
  * Custom roles: a name and a list of grants from the permission catalogue.
- * Owner-level powers (`*`, deleting the workspace) are never available to custom roles.
+ *  - Owner-level powers (`*`, deleting the workspace) are never available to custom roles.
+ *  - Nobody can grant more than they hold themselves (no escalation through a role), and
+ *    nobody can edit or delete the custom role they are assigned.
  */
 final class ManageRoles
 {
@@ -20,16 +23,20 @@ final class ManageRoles
     public function __construct(private readonly PermissionRegistry $registry) {}
 
     /** @param list<string> $permissions */
-    public function create(string $name, ?string $description, array $permissions): CustomRole
+    public function create(MemberAccess $actor, string $name, ?string $description, array $permissions): CustomRole
     {
         $this->assertName($name);
+        $clean = $this->clean($permissions);
+        $this->assertWithinCeiling($actor, $clean);
 
-        return CustomRole::query()->create(['name' => $name, 'description' => $description, 'permissions' => $this->clean($permissions)]);
+        return CustomRole::query()->create(['name' => $name, 'description' => $description, 'permissions' => $clean]);
     }
 
     /** @param list<string>|null $permissions */
-    public function update(CustomRole $role, ?string $name, ?string $description, ?array $permissions): CustomRole
+    public function update(MemberAccess $actor, CustomRole $role, ?string $name, ?string $description, ?array $permissions): CustomRole
     {
+        $this->assertNotOwnRole($actor, $role);
+
         if ($name !== null && $name !== $role->name) {
             $this->assertName($name);
             $role->name = $name;
@@ -40,7 +47,9 @@ final class ManageRoles
         }
 
         if ($permissions !== null) {
-            $role->permissions = $this->clean($permissions);
+            $clean = $this->clean($permissions);
+            $this->assertWithinCeiling($actor, $clean);
+            $role->permissions = $clean;
         }
 
         $role->save();
@@ -48,8 +57,10 @@ final class ManageRoles
         return $role;
     }
 
-    public function delete(CustomRole $role): void
+    public function delete(MemberAccess $actor, CustomRole $role): void
     {
+        $this->assertNotOwnRole($actor, $role);
+
         if (WorkspaceMember::query()->where('custom_role_id', $role->id)->exists()) {
             throw Problem::conflict('role-in-use', 'Move the members who have this role to another role first.');
         }
@@ -81,6 +92,24 @@ final class ManageRoles
         sort($clean);
 
         return $clean;
+    }
+
+    /** @param list<string> $grants */
+    private function assertWithinCeiling(MemberAccess $actor, array $grants): void
+    {
+        $mine = $this->registry->expand($actor->grants);
+        $beyond = array_values(array_diff($this->registry->expand($grants), $mine));
+
+        if ($beyond !== []) {
+            throw Problem::forbidden('beyond-own-permissions', 'You can only grant permissions you have yourself. Not yours: '.implode(', ', $beyond).'.');
+        }
+    }
+
+    private function assertNotOwnRole(MemberAccess $actor, CustomRole $role): void
+    {
+        if ($actor->customRoleId === $role->id) {
+            throw Problem::forbidden('cannot-edit-own-role', 'Ask an owner or admin to change the role you have.');
+        }
     }
 
     private function assertName(string $name): void

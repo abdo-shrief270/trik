@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\Workspaces\Application;
 
+use App\Support\Authorization\PermissionRegistry;
+use App\Support\Authorization\WorkspacePermissions;
 use App\Support\Http\Problem;
 use Illuminate\Support\Facades\DB;
 use Modules\Workspaces\Domain\WorkspaceRole;
@@ -14,11 +16,17 @@ use Modules\Workspaces\Infrastructure\Models\WorkspaceMember;
  * Team rules, enforced here so every client gets them:
  *  - nobody changes their own role;
  *  - only an owner can make or unmake an owner;
- *  - a workspace always keeps at least one owner.
+ *  - a workspace always keeps at least one owner;
+ *  - nobody gives a role, or changes a person, with more permissions than they have themselves.
  * Must run inside the workspace.
  */
 final class ChangeMemberRole
 {
+    public function __construct(
+        private readonly PermissionRegistry $registry,
+        private readonly WorkspacePermissions $permissions,
+    ) {}
+
     public function handle(string $workspaceId, string $actorId, string $targetId, WorkspaceRole $role, ?string $customRoleId = null): WorkspaceMember
     {
         return DB::transaction(function () use ($workspaceId, $actorId, $targetId, $role, $customRoleId): WorkspaceMember {
@@ -32,12 +40,27 @@ final class ChangeMemberRole
                 throw Problem::forbidden('owner-only', 'Only an owner can make someone an owner or change an owner\'s role.');
             }
 
+            $newGrants = $role->grants();
+
             if ($role === WorkspaceRole::Custom) {
-                if ($customRoleId === null || CustomRole::query()->whereKey($customRoleId)->doesntExist()) {
+                $custom = $customRoleId !== null ? CustomRole::query()->find($customRoleId) : null;
+
+                if ($custom === null) {
                     throw Problem::invalid(['custom_role_id' => ['Pick one of this workspace\'s custom roles.']]);
                 }
+
+                $newGrants = array_values($custom->permissions);
             } else {
                 $customRoleId = null;
+            }
+
+            if ($actor->role !== WorkspaceRole::Owner) {
+                $mine = $this->registry->expand($this->grants($workspaceId, $actorId));
+                $theirs = $this->registry->expand($this->grants($workspaceId, $targetId));
+
+                if (array_diff($this->registry->expand($newGrants), $mine) !== [] || array_diff($theirs, $mine) !== []) {
+                    throw Problem::forbidden('beyond-own-permissions', 'You can only manage people and roles within your own permissions.');
+                }
             }
 
             if ($target->role === WorkspaceRole::Owner && $role !== WorkspaceRole::Owner) {
@@ -57,6 +80,11 @@ final class ChangeMemberRole
 
             if ($target->role === WorkspaceRole::Owner && $actorId !== $targetId && $actor->role !== WorkspaceRole::Owner) {
                 throw Problem::forbidden('owner-only', 'Only an owner can remove an owner.');
+            }
+
+            if ($actorId !== $targetId && $actor->role !== WorkspaceRole::Owner
+                && array_diff($this->registry->expand($this->grants($workspaceId, $targetId)), $this->registry->expand($this->grants($workspaceId, $actorId))) !== []) {
+                throw Problem::forbidden('beyond-own-permissions', 'You can only remove people whose permissions you have yourself.');
             }
 
             if ($target->role === WorkspaceRole::Owner) {
@@ -85,6 +113,12 @@ final class ChangeMemberRole
         }
 
         return [$actor, $target];
+    }
+
+    /** @return list<string> */
+    private function grants(string $workspaceId, string $userId): array
+    {
+        return $this->permissions->access($workspaceId, $userId)->grants ?? [];
     }
 
     private function assertAnotherOwner(string $workspaceId, string $exceptUserId): void

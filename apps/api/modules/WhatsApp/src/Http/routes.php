@@ -7,7 +7,7 @@ use Modules\WhatsApp\Http\Controllers\MessageController;
 use Modules\WhatsApp\Http\Controllers\NumberController;
 use Modules\WhatsApp\Http\Controllers\TemplateController;
 
-Route::middleware(['auth:sanctum', 'workspace'])->prefix('whatsapp')->name('whatsapp.')->group(function (): void {
+Route::middleware(['auth:sanctum', 'verified.email', 'workspace'])->prefix('whatsapp')->name('whatsapp.')->group(function (): void {
     Route::get('numbers', [NumberController::class, 'index'])->middleware('can:whatsapp.numbers.view')->name('numbers.index');
     Route::post('numbers', [NumberController::class, 'store'])->middleware('can:whatsapp.numbers.manage')->name('numbers.store');
 

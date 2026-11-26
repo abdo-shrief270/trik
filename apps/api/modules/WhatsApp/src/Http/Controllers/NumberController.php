@@ -38,8 +38,9 @@ final class NumberController
     {
         $data = $request->validate([
             'provider' => ['required', Rule::in(array_map(fn (Provider $p) => $p->value, $providers->available()))],
-            'external_id' => ['required', 'string', 'max:64'],
-            'waba_id' => [Rule::requiredIf($request->input('provider') === Provider::MetaCloud->value), 'nullable', 'string', 'max:64'],
+            // ids end up in provider URLs: Meta ids are numeric, BSP channel ids are slugs
+            'external_id' => ['required', 'string', $request->input('provider') === Provider::MetaCloud->value ? 'regex:/^\d{5,25}$/' : 'regex:/^[A-Za-z0-9_-]{1,64}$/'],
+            'waba_id' => [Rule::requiredIf($request->input('provider') === Provider::MetaCloud->value), 'nullable', 'string', 'regex:/^\d{5,25}$/'],
             'display_phone_number' => ['nullable', 'string', 'max:32'],
             'credentials' => ['required', 'array'],
             'credentials.api_key' => [Rule::requiredIf($request->input('provider') === Provider::Dialog360->value), 'string'],

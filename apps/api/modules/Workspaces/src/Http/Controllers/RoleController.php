@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Workspaces\Http\Controllers;
 
+use App\Support\Authorization\MemberAccess;
+use App\Support\Authorization\PermissionGate;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\Workspaces\Application\ManageRoles;
@@ -24,7 +27,7 @@ final class RoleController
         return response()->json(['data' => [...$builtIn, ...$custom]]);
     }
 
-    public function store(Request $request, ManageRoles $roles): JsonResponse
+    public function store(Request $request, ManageRoles $roles, PermissionGate $gate): JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:60'],
@@ -33,10 +36,10 @@ final class RoleController
             'permissions.*' => ['string', 'max:100'],
         ]);
 
-        return response()->json(['data' => $roles->create($data['name'], $data['description'] ?? null, array_values($data['permissions']))->toApi()], 201);
+        return response()->json(['data' => $roles->create($this->actor($request, $gate), $data['name'], $data['description'] ?? null, array_values($data['permissions']))->toApi()], 201);
     }
 
-    public function update(Request $request, string $role, ManageRoles $roles): JsonResponse
+    public function update(Request $request, string $role, ManageRoles $roles, PermissionGate $gate): JsonResponse
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:60'],
@@ -46,6 +49,7 @@ final class RoleController
         ]);
 
         $updated = $roles->update(
+            $this->actor($request, $gate),
             CustomRole::query()->findOrFail($role),
             $data['name'] ?? null,
             $data['description'] ?? null,
@@ -55,10 +59,15 @@ final class RoleController
         return response()->json(['data' => $updated->toApi()]);
     }
 
-    public function destroy(string $role, ManageRoles $roles): JsonResponse
+    public function destroy(Request $request, string $role, ManageRoles $roles, PermissionGate $gate): JsonResponse
     {
-        $roles->delete(CustomRole::query()->findOrFail($role));
+        $roles->delete($this->actor($request, $gate), CustomRole::query()->findOrFail($role));
 
         return response()->json(null, 204);
+    }
+
+    private function actor(Request $request, PermissionGate $gate): MemberAccess
+    {
+        return $gate->current($request->user()) ?? throw new AuthorizationException;
     }
 }

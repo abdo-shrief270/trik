@@ -25,7 +25,7 @@ final class MonthlyPartitions
      *
      * @return list<string> created partitions
      */
-    public static function ensure(string $table, CarbonInterface $from, int $monthsAhead = 3, ?string $connection = null): array
+    public static function ensure(string $table, CarbonInterface $from, int $monthsAhead = 3, ?string $connection = null, int $fillfactor = 100): array
     {
         self::assertIdentifier($table);
         $db = DB::connection($connection);
@@ -44,11 +44,12 @@ final class MonthlyPartitions
             }
 
             $db->statement(sprintf(
-                "create table \"%s\" partition of \"%s\" for values from ('%s') to ('%s')",
+                "create table \"%s\" partition of \"%s\" for values from ('%s') to ('%s')%s",
                 $name,
                 $table,
                 $month->toDateString(),
                 $month->addMonth()->toDateString(),
+                $fillfactor < 100 ? sprintf(' with (fillfactor = %d)', max(50, $fillfactor)) : '',
             ));
             RowLevelSecurity::enable($name, connection: $connection);
             $created[] = $name;
@@ -82,6 +83,15 @@ final class MonthlyPartitions
         }
 
         return $dropped;
+    }
+
+    /**
+     * Rows that get updated later (statuses) leave room on the page so updates stay HOT
+     * (no index writes, less bloat). Append-only tables stay full.
+     */
+    public static function fillfactorFor(string $table): int
+    {
+        return in_array($table, ['whatsapp_messages', 'whatsapp_broadcast_sends'], true) ? 85 : 100;
     }
 
     /** @return list<string> */

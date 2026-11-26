@@ -23,9 +23,15 @@ final class MessageController
 {
     public function index(Request $request, string $number): JsonResponse
     {
+        try {
+            $contact = $request->filled('contact') ? PhoneNumber::fromString($request->string('contact')->toString(), $this->country())->digits : null;
+        } catch (InvalidArgumentException $e) {
+            throw Problem::invalid(['contact' => [$e->getMessage()]]);
+        }
+
         $page = Message::query()
             ->where('number_id', WhatsAppNumber::query()->findOrFail($number)->id)
-            ->when($request->filled('contact'), fn ($q) => $q->where('contact_phone', PhoneNumber::fromString($request->string('contact')->toString(), $this->country())->digits))
+            ->when($contact !== null, fn ($q) => $q->where('contact_phone', $contact))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->cursorPaginate(CursorPage::perPage($request));

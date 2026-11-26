@@ -28,7 +28,7 @@ final class MaintainCommand extends Command
         $connection = 'owner';
 
         foreach (self::TABLES as $table) {
-            foreach (MonthlyPartitions::ensure($table, now(), 3, $connection) as $created) {
+            foreach (MonthlyPartitions::ensure($table, now(), 3, $connection, MonthlyPartitions::fillfactorFor($table)) as $created) {
                 $this->info("created {$created}");
             }
 

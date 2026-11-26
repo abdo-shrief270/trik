@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\WhatsApp\Application\Exceptions\ProviderRequestFailed;
 use Modules\WhatsApp\Application\ProviderRegistry;
@@ -48,6 +49,23 @@ final class SendBroadcastChunk implements ShouldQueue
     }
 
     public function handle(ProviderRegistry $providers): void
+    {
+        $lock = Cache::lock('whatsapp-broadcast-chunk:'.md5(implode(',', $this->sendIds)), 300);
+
+        if (! $lock->get()) {
+            $this->release(30); // the same chunk is running elsewhere
+
+            return;
+        }
+
+        try {
+            $this->sendChunk($providers);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function sendChunk(ProviderRegistry $providers): void
     {
         $number = WhatsAppNumber::query()->find($this->numberId);
 

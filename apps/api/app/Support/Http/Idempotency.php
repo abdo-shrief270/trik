@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  * the first response replayed for any retry with the same key (24 h), so a flaky mobile network
  * never confirms an order or sends a message twice.
  *
- *  - Keys are scoped to the caller, workspace, method and path.
+ *  - Only for signed-in callers. Keys are scoped to the caller, workspace, method and path.
  *  - The same key with a different body is refused (422); a retry while the first is still
  *    running is refused (409). Server errors (5xx) are not stored, so they can be retried.
  *  - Stored in the cache store (Redis in production).
@@ -50,6 +50,11 @@ final class Idempotency
                 throw Problem::badRequest('idempotency-key-required', 'Send an '.self::HEADER.' header (a UUID per action) with this request.');
             }
 
+            return $next($request);
+        }
+
+        // Only signed-in callers: guest responses (sign-in, sign-up) carry tokens and are never cached.
+        if (Auth::guard('sanctum')->user() === null && $request->user() === null) {
             return $next($request);
         }
 
@@ -127,7 +132,7 @@ final class Idempotency
     {
         $user = Auth::guard('sanctum')->user() ?? $request->user();
 
-        return $user !== null ? 'user:'.$user->getAuthIdentifier() : 'ip:'.$request->ip();
+        return 'user:'.$user?->getAuthIdentifier();
     }
 
     private function store(): Repository

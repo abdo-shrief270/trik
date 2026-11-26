@@ -26,7 +26,7 @@ Meta / BSP ─► webhook-intake (Go) ─► Redpanda ─► message-writer (Go)
 Campaigns ─► dispatcher (Go): per-number token buckets, pair limits, retries, HTTP/2 pools ─► Meta
 ```
 
-1. **Intake does almost nothing**: verify the signature, append to Redpanda, answer 200. No database on the hot path. Target: ack p99 < 50 ms.
+1. **Intake does almost nothing**: verify the signature, append to Redpanda, answer 200. No database on the hot path. Target for the Go intake: ack p99 < 50 ms. The Laravel intake of the pilot stage measures p95 ~110–160 ms near its limit.
 2. **Writes are batched**: thousands of rows per statement, never one per event.
 3. **Data is split by how it is used**:
    - conversation messages (inbox) live in PostgreSQL;
@@ -41,7 +41,7 @@ Campaigns ─► dispatcher (Go): per-number token buckets, pair limits, retries
 | Stage | Load | What runs |
 |---|---|---|
 | Pilot | up to a few hundred msg/s | Laravel + Redis queues on one server (#343, #346) |
-| Launch | above ~1–2k webhook events/s sustained, or when the pilot server's queue lag exceeds 5 s | add Go `webhook-intake` + Redpanda (#95, #29) |
+| Launch | above ~500 webhook deliveries/s sustained on the pilot server, ack p95 > 200 ms, or queue lag > 5 s (measured: Laravel intake ≈ 125 req/s per vCPU, [review](../../security/2026-11-review.md)) | add Go `webhook-intake` + Redpanda (#95, #29) |
 | Scale | above ~10k events/s, or the first 30k/s campaign | add Go `message-writer` + `dispatcher` + ClickHouse status facts (#96, #97) |
 
 ### 3. Decisions taken now so later stages need no rewrite

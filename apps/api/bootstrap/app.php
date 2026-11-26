@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\HealthController;
+use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Http\Middleware\LimitRequestSize;
 use App\Http\Middleware\ResolveWorkspace;
+use App\Http\Middleware\SecurityHeaders;
 use App\Support\Http\Idempotency;
 use App\Support\Http\ProblemRenderer;
 use App\Support\Http\RequestId;
@@ -20,13 +23,15 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend(RequestId::class);
+        $middleware->prepend([RequestId::class, LimitRequestSize::class]);
+        $middleware->append(SecurityHeaders::class);
         $middleware->statefulApi();
         $middleware->throttleApi();
         $middleware->api(append: [Idempotency::class]);
         $middleware->alias([
             'workspace' => ResolveWorkspace::class,
             'idempotency' => Idempotency::class,
+            'verified.email' => EnsureEmailIsVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

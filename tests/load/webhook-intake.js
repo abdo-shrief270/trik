@@ -3,9 +3,9 @@
 // Targets (docs/plan/PLAN.md, ADR 0010): ack p99 < 50 ms, no errors, nothing lost.
 import http from 'k6/http';
 import { check } from 'k6';
-import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
 const RATE = Number(__ENV.RATE || 500);
+const uid = () => `${__VU}-${__ITER}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 export const options = {
   scenarios: {
@@ -31,8 +31,8 @@ export default function () {
   // 3 of 4 deliveries are statuses, like real traffic (sent, delivered, read per message)
   const inbound = Math.random() < 0.25;
   const value = inbound
-    ? { messages: [{ from: '2010' + Math.floor(10000000 + Math.random() * 89999999), id: 'wamid.load.' + uuidv4(), timestamp: `${Math.floor(Date.now() / 1000)}`, type: 'text', text: { body: 'load test' } }] }
-    : { statuses: [{ id: 'wamid.load.' + uuidv4(), status: 'delivered', timestamp: `${Math.floor(Date.now() / 1000)}`, recipient_id: '201012345678' }] };
+    ? { messages: [{ from: '2010' + Math.floor(10000000 + Math.random() * 89999999), id: 'wamid.load.' + uid(), timestamp: `${Math.floor(Date.now() / 1000)}`, type: 'text', text: { body: 'load test' } }] }
+    : { statuses: [{ id: 'wamid.load.' + uid(), status: 'delivered', timestamp: `${Math.floor(Date.now() / 1000)}`, recipient_id: '201012345678' }] };
 
   const body = JSON.stringify({
     object: 'whatsapp_business_account',

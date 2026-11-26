@@ -7,6 +7,7 @@ namespace Modules\WhatsApp\Application;
 use Modules\WhatsApp\Application\Jobs\ProcessWebhookEvents;
 use Modules\WhatsApp\Domain\Provider;
 use Modules\WhatsApp\Infrastructure\Models\WebhookEvent;
+use Throwable;
 
 /**
  * The fast path of a webhook: store the raw delivery, queue the processing, answer.
@@ -24,7 +25,13 @@ final class AcceptWebhook
         ]);
 
         // At most one pending drain job per workspace; it picks this delivery up with any others.
-        ProcessWebhookEvents::dispatch($event->workspace_id);
+        // The delivery is already stored: if the queue is down, answer 200 anyway and let
+        // `whatsapp:sweep` (every minute) wake the drain job later. Nothing is lost.
+        try {
+            ProcessWebhookEvents::dispatch($event->workspace_id);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $event;
     }
