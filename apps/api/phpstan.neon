@@ -11,7 +11,4 @@ parameters:
     excludePaths:
         - modules/*/tests/*
     treatPhpDocTypesAsCertain: false
-    ignoreErrors:
-        # BelongsToWorkspace is the tenant-model trait; the first real tenant tables arrive with Contacts/Orders.
-        - identifier: trait.unused
-          path: app/Support/Tenancy/BelongsToWorkspace.php
+

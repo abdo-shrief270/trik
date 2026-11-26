@@ -10,7 +10,7 @@ use Modules\Workspaces\Infrastructure\EloquentWorkspaceMembership;
 
 final class WorkspacesServiceProvider extends ModuleServiceProvider
 {
-    public function register(): void
+    protected function registerModule(): void
     {
         $this->app->bind(WorkspaceMembership::class, EloquentWorkspaceMembership::class);
     }
