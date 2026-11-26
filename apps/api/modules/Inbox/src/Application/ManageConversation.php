@@ -21,6 +21,7 @@ final class ManageConversation
         private readonly WorkspacePermissions $permissions,
         private readonly PermissionRegistry $registry,
         private readonly Realtime $realtime,
+        private readonly BadgeCounts $badges,
     ) {}
 
     /**
@@ -81,7 +82,10 @@ final class ManageConversation
                 'last_message_at' => $conversation->last_message_at->toIso8601String(),
             ],
         ]];
-        DB::afterCommit(fn () => $this->realtime->publish($payload));
+        DB::afterCommit(function () use ($payload): void {
+            $this->realtime->publish($payload);
+            $this->badges->push();
+        });
 
         return $conversation;
     }

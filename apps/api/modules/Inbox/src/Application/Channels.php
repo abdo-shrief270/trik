@@ -11,4 +11,10 @@ final class Channels
     {
         return 'inbox:'.$workspaceId;
     }
+
+    /** A person's own channel, across workspaces (badges, notifications). */
+    public static function user(string $userId): string
+    {
+        return 'user:'.$userId;
+    }
 }

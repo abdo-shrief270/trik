@@ -249,9 +249,9 @@ it('updates conversations for a backlog of customers with a fixed number of quer
         expect(Conversation::query()->count())->toBe(40)
             ->and((int) Conversation::query()->sum('unread_count'))->toBe(120);
     });
-    expect($this->realtime->sent)->toHaveCount(40)
-        ->and($this->realtime->sent[0]['channel'])->toBe('inbox:'.$this->ws)
-        ->and($this->realtime->sent[0]['data']['type'])->toBe('conversation.updated');
+    $updates = array_values(array_filter($this->realtime->sent, fn (array $m): bool => $m['data']['type'] === 'conversation.updated'));
+    expect($updates)->toHaveCount(40)
+        ->and($updates[0]['channel'])->toBe('inbox:'.$this->ws);
 });
 
 it('does not push anything when the batch rolls back', function (): void {

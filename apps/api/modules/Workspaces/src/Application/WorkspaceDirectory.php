@@ -71,4 +71,11 @@ final class WorkspaceDirectory
             array_filter($this->forUser($userId), fn (WorkspaceData $w): bool => $w->organizationId === $organizationId),
         ));
     }
+
+    /** @return list<string> user ids of everyone in the workspace */
+    public function memberIds(string $workspaceId): array
+    {
+        /** @var list<string> */
+        return WorkspaceMember::query()->where('workspace_id', $workspaceId)->pluck('user_id')->all();
+    }
 }

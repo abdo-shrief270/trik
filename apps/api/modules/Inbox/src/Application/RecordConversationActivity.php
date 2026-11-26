@@ -25,7 +25,7 @@ use Modules\WhatsApp\Domain\Direction;
  */
 final class RecordConversationActivity
 {
-    public function __construct(private readonly ContactDirectory $contacts, private readonly Realtime $realtime) {}
+    public function __construct(private readonly ContactDirectory $contacts, private readonly Realtime $realtime, private readonly BadgeCounts $badges) {}
 
     public function handle(MessagesLogged $event): void
     {
@@ -59,7 +59,10 @@ final class RecordConversationActivity
             ],
         ], array_values($rows));
 
-        DB::afterCommit(fn () => $this->realtime->publish($messages));
+        DB::afterCommit(function () use ($messages): void {
+            $this->realtime->publish($messages);
+            $this->badges->push();
+        });
     }
 
     /**

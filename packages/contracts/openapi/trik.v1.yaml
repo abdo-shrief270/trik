@@ -146,11 +146,11 @@ paths:
                   workspaces:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Workspace'
+                      $ref: '#/components/schemas/WorkspaceWithBadges'
                   organizations:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Organization'
+                      $ref: '#/components/schemas/OrganizationWithBadges'
         '401':
           $ref: '#/components/responses/Unauthenticated'
   /auth/forgot-password:
@@ -2706,3 +2706,45 @@ components:
           - string
           - 'null'
           format: date-time
+    WorkspaceBadges:
+      title: WorkspaceBadges
+      type: object
+      required:
+      - unread
+      - assigned_to_me
+      description: 'Where work is waiting (from maintained counters). Live updates: `badges.updated` on the real-time channel `user:{id}`.'
+      properties:
+        unread:
+          type: integer
+          minimum: 0
+          description: Open conversations with unread customer messages
+        assigned_to_me:
+          type: integer
+          minimum: 0
+          description: Open conversations assigned to the signed-in user
+    WorkspaceWithBadges:
+      title: WorkspaceWithBadges
+      allOf:
+      - $ref: '#/components/schemas/Workspace'
+      - type: object
+        required:
+        - badges
+        properties:
+          badges:
+            $ref: '#/components/schemas/WorkspaceBadges'
+    OrganizationWithBadges:
+      type: object
+      description: One of the caller's organizations with only the workspaces they belong to.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationRole'
+        workspaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceWithBadges'
+      title: OrganizationWithBadges

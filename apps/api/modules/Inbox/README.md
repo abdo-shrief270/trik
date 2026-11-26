@@ -31,19 +31,35 @@ whatever the number of customers.
 | `entry: "ad"` | the customer came from a Click-to-WhatsApp ad or a Facebook Page button (`referral` in the webhook) |
 | `free_until` | Meta's free entry point: answering such a customer within 24 hours makes everything free for 72 hours from the answer. It does **not** extend the 24-hour window. |
 
+## Badges for the switcher (#368)
+
+`GET /v1/auth/me` gives every workspace (and every organization's workspaces) a `badges` object:
+`unread` (open conversations with unread customer messages) and `assigned_to_me`.
+
+- Counters live in `inbox_badge_counts` and are maintained by **statement-level triggers** on
+  `inbox_conversations` (transition tables): every write path moves them in the same transaction, and a
+  batch upsert of 500 conversations costs one counter statement, not 500.
+- `/me` reads them with one index lookup across the user's workspaces (read-only context, RLS applies):
+  p95 under 100 ms for someone in 20 workspaces (test).
+- After each change, members get `badges.updated` (workspace id, unread, assigned to me) on their own
+  channel `user:{id}`, so the switcher updates in every workspace, not only the open one.
+- `inbox:recount-badges` (daily 03:40) rebuilds the counters from the conversations; a test checks that
+  the maintained counters equal a full recount after random assignments, closes, reads and deletes.
+
 ## Public API (Application layer)
 
 | Contract | Purpose |
 |---|---|
 | `ConversationPresenter` | API shape of conversations (with contacts) |
 | `ManageConversation` | assign, close/reopen, mark read (with real-time notification) |
-| `Channels::inbox($workspaceId)` | real-time channel name |
+| `Channels::inbox($workspaceId)`, `Channels::user($userId)` | real-time channel names |
+| `BadgeCounts` (implements `App\Support\Inbox\WorkspaceBadges`) | badges per workspace, push to members, rebuild |
 
 ## Events
 
 | Emits | Listens to |
 |---|---|
-| real time on `inbox:{workspace}`: `conversation.updated` (id, status, assignee, unread, last message time), after commit | `WhatsApp\MessagesLogged` (in transaction) |
+| real time on `inbox:{workspace}`: `conversation.updated` (id, status, assignee, unread, last message time); on `user:{id}`: `badges.updated`; both after commit | `WhatsApp\MessagesLogged` (in transaction) |
 
 ## HTTP API (`/v1/inbox`, signed in, `X-Workspace-Id`)
 
@@ -60,6 +76,6 @@ Agents get view and reply; they can take an unassigned conversation or let go of
 
 ## Not yet
 
-- Per-workspace badges (#368), notes and mentions (#62), collision detection (#63), views (#57).
+- Notes and mentions (#62), collision detection (#63), views (#57).
 - Read receipts back to the customer (blue ticks) on `read`.
 - Signed Centrifugo subscription tokens (#98): set `CENTRIFUGO_API_URL` / `CENTRIFUGO_API_KEY` to publish.

@@ -137,6 +137,8 @@ for method, path, body in [
 ]:
     r = call(method, path, B["token"], B["ws"], body, {"Idempotency-Key": str(uuid.uuid4())})
     check(f"IDOR {method} {path.replace(CON, '{A-conversation}')} from another workspace", r.status_code == 404, f"{r.status_code} {r.text[:120]}")
+r = call("GET", "/v1/auth/me", B["token"])
+check("badges in /me cover only your own workspaces", [w["id"] for w in r.json()["workspaces"]] == [B["ws"]] and r.json()["workspaces"][0]["badges"]["unread"] == 0, r.text[:200])
 r = call("GET", "/v1/inbox/conversations", B["token"], B["ws"])
 check("another workspace's inbox list is empty", r.status_code == 200 and r.json()["data"] == [], r.text[:200])
 r = call("PATCH", f"/v1/inbox/conversations/{CON}", agent["token"], A["ws"], {"assignee_id": admin["id"]})
