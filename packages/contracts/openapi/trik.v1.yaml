@@ -15,6 +15,7 @@ security:
 tags:
 - name: Auth
 - name: Workspaces
+- name: Organization
 - name: Team
 - name: WhatsApp
 - name: Orders
@@ -1214,6 +1215,528 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       x-status: planned
+  /workspace/audit:
+    get:
+      operationId: workspaceAudit
+      summary: Workspace audit log (team and settings changes), newest first
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: workspace.audit.view
+      description: Requires the `workspace.audit.view` permission in the workspace.
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organization:
+    get:
+      operationId: showOrganization
+      summary: The organization, your role and organization permissions
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      x-permission: organization.settings.view
+      description: Requires the `organization.settings.view` organization permission.
+      responses:
+        '200':
+          description: Organization
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        $ref: '#/components/schemas/OrganizationRole'
+                      permissions:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      operationId: renameOrganization
+      summary: Rename the organization
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      x-permission: organization.settings.update
+      description: Requires the `organization.settings.update` organization permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 120
+      responses:
+        '200':
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /organization/audit:
+    get:
+      operationId: organizationAudit
+      summary: Organization audit log, newest first
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: organization.audit.view
+      description: Requires the `organization.audit.view` organization permission.
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organization/workspaces:
+    get:
+      operationId: organizationWorkspaces
+      summary: The organization's workspaces (names only, no data) and your role in each
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      x-permission: organization.workspaces.view
+      description: Requires the `organization.workspaces.view` organization permission.
+      responses:
+        '200':
+          description: Workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                        my_role:
+                          type:
+                          - string
+                          - 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organization/members:
+    get:
+      operationId: organizationMembers
+      summary: The organization's people and their workspaces in it
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: organization.members.view
+      description: Requires the `organization.members.view` organization permission.
+      responses:
+        '200':
+          description: People
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganizationMember'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organization/members/{user}:
+    patch:
+      operationId: changeOrganizationRole
+      summary: Change someone's organization role
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: organization.members.manage
+      description: Requires the `organization.members.manage` organization permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - role
+              properties:
+                role:
+                  type: string
+                  enum:
+                  - owner
+                  - admin
+                  - billing
+                  - member
+      responses:
+        '200':
+          description: Changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      role:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: removeFromOrganization
+      summary: Remove someone from the organization and all its workspaces (anyone may leave)
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /organization/workspaces/{workspace}/members:
+    get:
+      operationId: organizationWorkspaceMembers
+      summary: Who is in one of the organization's workspaces
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: workspace
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: organization.workspace_members.manage
+      description: Requires the `organization.workspace_members.manage` organization permission.
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user_id:
+                          type: string
+                        name:
+                          type: string
+                        role:
+                          $ref: '#/components/schemas/RoleName'
+                        custom_role_id:
+                          type:
+                          - string
+                          - 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: addToWorkspace
+      summary: Add someone from the organization to a workspace (audited, visible to the workspace)
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: workspace
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: organization.workspace_members.manage
+      description: Requires the `organization.workspace_members.manage` organization permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              - role
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                role:
+                  $ref: '#/components/schemas/RoleName'
+                custom_role_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      responses:
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      role:
+                        $ref: '#/components/schemas/RoleName'
+                      custom_role_id:
+                        type:
+                        - string
+                        - 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /organization/workspaces/{workspace}/members/{user}:
+    patch:
+      operationId: changeWorkspaceRoleFromOrganization
+      summary: Change someone's role in a workspace
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: workspace
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: organization.workspace_members.manage
+      description: Requires the `organization.workspace_members.manage` organization permission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - role
+              properties:
+                role:
+                  $ref: '#/components/schemas/RoleName'
+                custom_role_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      responses:
+        '200':
+          description: Changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      role:
+                        $ref: '#/components/schemas/RoleName'
+                      custom_role_id:
+                        type:
+                        - string
+                        - 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: removeFromWorkspace
+      summary: Remove someone from a workspace
+      tags:
+      - Organization
+      parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - in: path
+        name: workspace
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: organization.workspace_members.manage
+      description: Requires the `organization.workspace_members.manage` organization permission.
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
   securitySchemes:
     bearerAuth:
@@ -1270,6 +1793,14 @@ components:
       required: true
       schema:
         type: string
+    OrganizationId:
+      in: header
+      name: X-Organization-Id
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The organization to act in. The caller must be in its people list.
   responses:
     BadRequest:
       description: Bad request
@@ -1665,3 +2196,71 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Workspace'
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+          example: member.added
+        actor:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        subject:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        workspace_id:
+          type:
+          - string
+          - 'null'
+        data:
+          type:
+          - object
+          - 'null'
+        ip:
+          type:
+          - string
+          - 'null'
+        at:
+          type: string
+          format: date-time
+    OrganizationMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - billing
+          - member
+        workspaces:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              role:
+                $ref: '#/components/schemas/RoleName'

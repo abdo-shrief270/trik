@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Notification;
 use Modules\Identity\Infrastructure\Models\User;
+use Modules\Identity\Infrastructure\Notifications\QueuedVerifyEmail;
 
 it('verifies the email from the signed link and redirects to the web app', function (): void {
     Notification::fake();
@@ -12,7 +12,7 @@ it('verifies the email from the signed link and redirects to the web app', funct
     $user->sendEmailVerificationNotification();
 
     $url = null;
-    Notification::assertSentTo($user, VerifyEmail::class, function (VerifyEmail $n) use ($user, &$url): bool {
+    Notification::assertSentTo($user, QueuedVerifyEmail::class, function (QueuedVerifyEmail $n) use ($user, &$url): bool {
         $url = $n->toMail($user)->actionUrl;
 
         return true;
@@ -37,5 +37,5 @@ it('resends the verification email', function (): void {
         ->postJson('/v1/auth/email/verification-notification')
         ->assertAccepted();
 
-    Notification::assertSentTo($user, VerifyEmail::class);
+    Notification::assertSentTo($user, QueuedVerifyEmail::class);
 });

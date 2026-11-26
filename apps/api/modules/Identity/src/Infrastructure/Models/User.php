@@ -12,6 +12,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Identity\Infrastructure\Factories\UserFactory;
+use Modules\Identity\Infrastructure\Notifications\QueuedResetPassword;
+use Modules\Identity\Infrastructure\Notifications\QueuedVerifyEmail;
 
 /**
  * @property string $id
@@ -47,5 +49,16 @@ final class User extends Authenticatable implements MustVerifyEmail
     protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new QueuedVerifyEmail);
+    }
+
+    /** @param  string  $token */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new QueuedResetPassword($token));
     }
 }
