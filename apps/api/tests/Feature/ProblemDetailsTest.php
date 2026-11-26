@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Middleware\ResolveWorkspace;
 use App\Support\Http\RequestId;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Modules\Identity\Infrastructure\Models\User;
 
 it('answers validation errors as problem+json with field errors', function (): void {
@@ -43,4 +45,16 @@ it('hides internal error details outside debug mode', function (): void {
 it('keeps an incoming request id and makes one otherwise', function (): void {
     $this->withHeader(RequestId::HEADER, 'edge-abc-12345')->getJson('/healthz')->assertHeader(RequestId::HEADER, 'edge-abc-12345');
     expect($this->flushHeaders()->getJson('/healthz')->headers->get(RequestId::HEADER))->toMatch('/^[0-9a-f-]{36}$/');
+});
+
+it('does not write client errors to the error log', function (): void {
+    $reported = [];
+    app(ExceptionHandler::class)->reportable(function (Throwable $e) use (&$reported): void {
+        $reported[] = $e;
+    });
+
+    $owner = ownerWithWorkspace();
+    $this->withHeaders([...$owner['headers'], 'X-Workspace-Id' => (string) Str::uuid()])->getJson('/v1/workspace')->assertForbidden();
+
+    expect($reported)->toBe([]);
 });

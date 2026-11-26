@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Application;
 
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\DB;
+use Modules\WhatsApp\Application\Events\LoggedMessage;
+use Modules\WhatsApp\Application\Events\MessagesLogged;
 use Modules\WhatsApp\Application\Jobs\SendOutgoingMessage;
 use Modules\WhatsApp\Domain\Direction;
 use Modules\WhatsApp\Domain\Messages\OutgoingMessage;
@@ -19,19 +23,41 @@ use Modules\WhatsApp\Infrastructure\Providers\CloudApiPayload;
  */
 final class SendMessage
 {
-    public function handle(WhatsAppNumber $number, PhoneNumber $to, OutgoingMessage $message, ?string $replyTo = null): Message
+    public function __construct(private readonly Dispatcher $events) {}
+
+    public function handle(WhatsAppNumber $number, PhoneNumber $to, OutgoingMessage $message, ?string $replyTo = null, ?string $sentBy = null): Message
     {
-        $row = Message::query()->create([
-            'number_id' => $number->id,
-            'direction' => Direction::Outbound,
-            'contact_phone' => $to->digits,
-            'type' => $message->type(),
-            'body' => CloudApiPayload::message($to, $message, $replyTo),
-            'status' => MessageStatus::Queued,
-        ]);
+        return DB::transaction(function () use ($number, $to, $message, $replyTo, $sentBy): Message {
+            $row = Message::query()->create([
+                'number_id' => $number->id,
+                'direction' => Direction::Outbound,
+                'contact_phone' => $to->digits,
+                'type' => $message->type(),
+                'body' => CloudApiPayload::message($to, $message, $replyTo),
+                'status' => MessageStatus::Queued,
+                'sent_by' => $sentBy,
+            ]);
 
-        SendOutgoingMessage::dispatch($row->id, $to, $message, $replyTo)->afterCommit();
+            $this->events->dispatch(new MessagesLogged($row->workspace_id, [new LoggedMessage(
+                messageId: $row->id,
+                numberId: $number->id,
+                direction: Direction::Outbound,
+                contactPhone: $to->digits,
+                type: $message->type(),
+                at: $row->created_at ?? now(),
+                preview: OutgoingMessages::preview($message),
+                sentBy: $sentBy,
+            )]));
 
-        return $row;
+            SendOutgoingMessage::dispatch($row->id, $to, $message, $replyTo)->afterCommit();
+
+            return $row;
+        });
+    }
+
+    /** Same, for callers outside this module that only hold the number's id. */
+    public function fromNumber(string $numberId, PhoneNumber $to, OutgoingMessage $message, ?string $replyTo = null, ?string $sentBy = null): Message
+    {
+        return $this->handle(WhatsAppNumber::query()->findOrFail($numberId), $to, $message, $replyTo, $sentBy);
     }
 }

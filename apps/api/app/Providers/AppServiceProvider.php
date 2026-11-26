@@ -8,6 +8,9 @@ use App\Support\Authorization\PermissionGate;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Events\EventPublisher;
 use App\Support\Events\LaravelEventPublisher;
+use App\Support\Realtime\CentrifugoRealtime;
+use App\Support\Realtime\NullRealtime;
+use App\Support\Realtime\Realtime;
 use App\Support\Tenancy\QueueTenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -28,6 +31,13 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenantContext::class);
         $this->app->singleton(QueueTenancy::class);
         $this->app->bind(EventPublisher::class, LaravelEventPublisher::class);
+        $this->app->singleton(Realtime::class, function (): Realtime {
+            $url = config('services.centrifugo.url');
+
+            return is_string($url) && $url !== ''
+                ? new CentrifugoRealtime($url, (string) config('services.centrifugo.api_key'))
+                : new NullRealtime;
+        });
         $this->app->singleton(PermissionRegistry::class);
         $this->app->scoped(PermissionGate::class);
     }

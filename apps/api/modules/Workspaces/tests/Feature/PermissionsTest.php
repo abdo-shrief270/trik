@@ -42,7 +42,7 @@ it('tells each member what they can do', function (): void {
     as_($agent)->getJson('/v1/workspace/permissions')
         ->assertOk()
         ->assertJsonPath('data.role', 'agent')
-        ->assertJsonPath('data.permissions', ['whatsapp.messages.send', 'whatsapp.messages.view', 'whatsapp.numbers.view', 'whatsapp.templates.view', 'workspace.members.view']);
+        ->assertJsonPath('data.permissions', ['inbox.conversations.reply', 'inbox.conversations.view', 'whatsapp.messages.send', 'whatsapp.messages.view', 'whatsapp.numbers.view', 'whatsapp.templates.view', 'workspace.members.view']);
 
     $perms = as_($this->owner)->getJson('/v1/workspace/permissions')->json('data.permissions');
     expect($perms)->toContain('workspace.workspace.delete', 'whatsapp.numbers.manage');

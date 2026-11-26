@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Real-time push to web and mobile (#98). Empty url = disabled.
+    'centrifugo' => [
+        'url' => env('CENTRIFUGO_API_URL'),
+        'api_key' => env('CENTRIFUGO_API_KEY'),
+    ],
+
 ];

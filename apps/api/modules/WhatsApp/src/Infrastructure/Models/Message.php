@@ -30,6 +30,9 @@ use Modules\WhatsApp\Domain\MessageStatus;
  * @property Carbon|null $delivered_at
  * @property Carbon|null $read_at
  * @property Carbon|null $failed_at
+ * @property Carbon|null $received_at
+ * @property Carbon|null $created_at
+ * @property string|null $sent_by
  */
 final class Message extends Model
 {
@@ -72,6 +75,30 @@ final class Message extends Model
             'sent_at' => $this->sent_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
             'read_at' => $this->read_at?->toIso8601String(),
+            'received_at' => $this->received_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'sent_by' => $this->sent_by,
+            'content' => $this->content(),
         ];
+    }
+
+    /**
+     * What the message says, without transport details: for inbound messages the parsed fields
+     * (text, media id, reply id…, never the raw provider payload); for outbound ones the Cloud API
+     * content object (text, template, interactive or media).
+     *
+     * @return array<string, mixed>
+     */
+    public function content(): array
+    {
+        $body = $this->body;
+
+        if ($this->direction === Direction::Inbound) {
+            unset($body['raw']);
+
+            return $body;
+        }
+
+        return array_diff_key($body, array_flip(['messaging_product', 'recipient_type', 'to']));
     }
 }

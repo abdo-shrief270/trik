@@ -28,12 +28,15 @@ add it to the `providers` dataset and its fake API to `tests/Fixtures/ProviderFi
 | `Contracts\WebhookAdapter` | verify a delivery, normalise it to `InboundMessage` / `StatusUpdate` |
 | `ProviderRegistry` | the adapter for a connected number |
 | `ConnectNumber` | connect a number with provider credentials (pilot onboarding) |
-| `SendMessage` | log as queued and send on the queue with retries |
+| `SendMessage` | log as queued and send on the queue with retries (records `sent_by`) |
+| `OutgoingMessages` | request rules and builder for outgoing messages, shared by every endpoint that sends |
+| `MessageHistory` | a customer's messages across the workspace's numbers (the inbox) |
 
 ## Events
 
 | Emits | Listens to |
 |---|---|
+| `MessagesLogged` (conversation messages written, either direction; **inside** the transaction, for set-based listeners such as the inbox) | — |
 | `MessageReceived` (once per message; redeliveries dropped) | — |
 | `MessageStatusChanged` (sent → delivered → read, or failed; never backwards) | — |
 

@@ -15,4 +15,10 @@ return [
 
     // An organization holds at most this many workspaces (stops abuse; raise per customer).
     'max_workspaces_per_organization' => (int) env('MAX_WORKSPACES_PER_ORGANIZATION', 10),
+
+    // Features still being rolled out: 'all', 'none', or a comma-separated list of workspace ids
+    // (pilot sellers first). Checked by the "feature:<name>" middleware.
+    'features' => [
+        'inbox' => env('FEATURE_INBOX', 'all'),
+    ],
 ];

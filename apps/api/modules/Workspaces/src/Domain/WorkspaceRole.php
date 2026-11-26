@@ -27,6 +27,8 @@ enum WorkspaceRole: string
                 'whatsapp.templates.view',
                 'whatsapp.messages.view',
                 'whatsapp.messages.send',
+                'inbox.conversations.view',
+                'inbox.conversations.reply',
             ],
             self::Custom => [],
         };

@@ -121,6 +121,33 @@ check("cannot add people to another organization's workspace", r.status_code == 
 r = call("POST", "/v1/workspace/roles", A["token"], A["ws"], {"name": "org-sneak", "permissions": ["organization.members.manage"]})
 check("organization powers cannot go into a workspace role", r.status_code == 422, r.status_code)
 
+# ---------------- inbox
+CA, CB, CON, OLD = (str(uuid.uuid4()) for _ in range(4))
+sql(f"insert into contacts_contacts (id, workspace_id, phone, name, created_at, updated_at) values "
+    f"('{CA}', '{A['ws']}', '201000000001', 'probe', now(), now()), ('{CB}', '{A['ws']}', '201000000002', 'old', now(), now())")
+sql(f"insert into inbox_conversations (id, workspace_id, contact_id, number_id, unread_count, last_message_at, last_message_direction, last_message_type, last_inbound_at, created_at, updated_at) values "
+    f"('{CON}', '{A['ws']}', '{CA}', '{NA}', 1, now(), 'in', 'text', now(), now(), now()), "
+    f"('{OLD}', '{A['ws']}', '{CB}', '{NA}', 1, now() - interval '2 days', 'in', 'text', now() - interval '2 days', now(), now())")
+for method, path, body in [
+    ("GET", f"/v1/inbox/conversations/{CON}", None),
+    ("PATCH", f"/v1/inbox/conversations/{CON}", {"status": "closed"}),
+    ("POST", f"/v1/inbox/conversations/{CON}/read", None),
+    ("GET", f"/v1/inbox/conversations/{CON}/messages", None),
+    ("POST", f"/v1/inbox/conversations/{CON}/messages", {"type": "text", "text": "x"}),
+]:
+    r = call(method, path, B["token"], B["ws"], body, {"Idempotency-Key": str(uuid.uuid4())})
+    check(f"IDOR {method} {path.replace(CON, '{A-conversation}')} from another workspace", r.status_code == 404, f"{r.status_code} {r.text[:120]}")
+r = call("GET", "/v1/inbox/conversations", B["token"], B["ws"])
+check("another workspace's inbox list is empty", r.status_code == 200 and r.json()["data"] == [], r.text[:200])
+r = call("PATCH", f"/v1/inbox/conversations/{CON}", agent["token"], A["ws"], {"assignee_id": admin["id"]})
+check("an agent cannot assign conversations to others", r.status_code == 403, r.status_code)
+r = call("PATCH", f"/v1/inbox/conversations/{CON}", A["token"], A["ws"], {"assignee_id": B["id"]})
+check("conversations cannot be assigned to someone outside the team", r.status_code == 422, r.status_code)
+r = call("POST", f"/v1/inbox/conversations/{OLD}/messages", A["token"], A["ws"], {"type": "text", "text": "late"}, {"Idempotency-Key": str(uuid.uuid4())})
+check("free-form reply refused after the 24-hour window", r.status_code == 409 and r.json().get("code") == "window-closed", f"{r.status_code} {r.text[:120]}")
+r = call("GET", "/v1/inbox/conversations?cursor=eyJsYXN0X21lc3NhZ2VfYXQiOiInIG9yIDE9MSAtLSIsImlkIjoieCIsIl9wb2ludHNUb05leHRJdGVtcyI6dHJ1ZX0", A["token"], A["ws"])
+check("crafted inbox cursor answers 400", r.status_code == 400, r.status_code)
+
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)

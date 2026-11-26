@@ -3,8 +3,7 @@ openapi: 3.1.0
 info:
   title: Trik API
   version: 1.0.0
-  description: 'Trik app and public API. Errors are RFC 9457 problem+json; lists use cursor pagination; writes accept Idempotency-Key. Operations
-    marked `x-status: planned` are not built yet. A test fails if a built route is missing here.'
+  description: 'Trik app and public API. Errors are RFC 9457 problem+json; lists use cursor pagination; writes accept Idempotency-Key. Operations marked `x-status: planned` are not built yet. A test fails if a built route is missing here.'
 servers:
 - url: https://api.trik.chat/v1
 - url: http://localhost:8080/v1
@@ -18,6 +17,7 @@ tags:
 - name: Organization
 - name: Team
 - name: WhatsApp
+- name: Inbox
 - name: Orders
 - name: Confirmation
 paths:
@@ -1737,6 +1737,267 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /inbox/conversations:
+    get:
+      operationId: listConversations
+      summary: 'The inbox: conversations, newest activity first'
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - open
+          - closed
+          - all
+          default: open
+      - in: query
+        name: assignee
+        schema:
+          type: string
+        description: '`me`, `unassigned` or a user id'
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Only conversations with unread customer messages
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}:
+    get:
+      operationId: getConversation
+      summary: A conversation
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateConversation
+      summary: Close or reopen; assign or unassign
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - open
+                  - closed
+                assignee_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      x-permission: inbox.conversations.reply
+      description: Requires the `inbox.conversations.reply` permission in the workspace. Taking an unassigned conversation or letting go of your own needs only this; assigning anyone else also needs `inbox.conversations.assign` (403 `cannot-assign`). The assignee must be on the team and able to see conversations (422 `assignee-cannot-view`). Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}/read:
+    post:
+      operationId: markConversationRead
+      summary: Mark the customer's messages as read
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}/messages:
+    get:
+      operationId: listConversationMessages
+      summary: The customer's messages across the workspace's numbers, newest first
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WhatsAppMessage'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: replyToConversation
+      summary: Reply from the number the customer last wrote to
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingMessage'
+      x-permission: inbox.conversations.reply
+      description: 'Requires the `inbox.conversations.reply` permission in the workspace. Free-form messages need the 24-hour window to be open (409 `window-closed`: send a template); 409 `no-number` when that number is no longer connected. Returns 404 where the inbox is not rolled out yet (feature flag).'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WhatsAppMessage'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -2170,6 +2431,23 @@ components:
           type:
           - string
           - 'null'
+        received_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        sent_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Team member who sent it (outbound, from the API or the inbox)
+        content:
+          type: object
+          description: 'What the message says. Inbound: parsed fields (text, media_id, mime_type, reply_id, context_message_id, contact_name). Outbound: the Cloud API content object (text, template, interactive or media).'
     OrganizationRole:
       type:
       - string
@@ -2264,3 +2542,167 @@ components:
                 type: string
               role:
                 $ref: '#/components/schemas/RoleName'
+    OutgoingMessage:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+          - template
+          - buttons
+          - media
+        reply_to:
+          type: string
+        text:
+          type: string
+          maxLength: 4096
+        template:
+          type: object
+          properties:
+            name:
+              type: string
+            language:
+              type: string
+            components:
+              type: array
+              items:
+                type: object
+        body:
+          type: string
+        buttons:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 20
+          maxProperties: 3
+        media:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+              - image
+              - video
+              - audio
+              - document
+              - sticker
+            link:
+              type: string
+            id:
+              type: string
+            caption:
+              type: string
+            filename:
+              type: string
+      title: OutgoingMessage
+    MessagingWindow:
+      title: MessagingWindow
+      type: object
+      required:
+      - open
+      - closes_at
+      - free_until
+      - entry
+      description: 'Free-form messages are allowed only while open (24 hours after the customer last wrote); templates always are. free_until: Meta free entry point (72 h after answering a customer who came from an ad); it makes messages free, it does not extend the window.'
+      properties:
+        open:
+          type: boolean
+        closes_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        free_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        entry:
+          type:
+          - string
+          - 'null'
+          enum:
+          - ad
+          - null
+    Contact:
+      title: Contact
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+          description: Digits, international (wa_id format)
+    Conversation:
+      title: Conversation
+      type: object
+      description: One per customer per workspace, across numbers and channels.
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - open
+          - closed
+        contact:
+          $ref: '#/components/schemas/Contact'
+        assignee_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        number_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Replies go out from this number (the one the customer last wrote to)
+        unread_count:
+          type: integer
+          minimum: 0
+        last_message:
+          type: object
+          properties:
+            at:
+              type: string
+              format: date-time
+            direction:
+              type: string
+              enum:
+              - in
+              - out
+            type:
+              type: string
+            preview:
+              type:
+              - string
+              - 'null'
+        last_inbound_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        window:
+          $ref: '#/components/schemas/MessagingWindow'
+        closed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
