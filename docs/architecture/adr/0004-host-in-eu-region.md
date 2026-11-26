@@ -1,6 +1,6 @@
 # ADR 0004: Host in an EU region
 
-- **Status:** Accepted
+- **Status:** Accepted · refined by [ADR 0011](0011-hostinger-first-aws-later.md) (Hostinger EU first, AWS later)
 - **Date:** 2026-11-25
 
 ## Context

@@ -2,68 +2,129 @@
 
 declare(strict_types=1);
 
+use App\Support\Database\MonthlyPartitions;
 use App\Support\Tenancy\RowLevelSecurity;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * WhatsApp storage, shaped for the scale path in ADR 0010:
+ *  - whatsapp_numbers            small, regular table
+ *  - whatsapp_webhook_events     raw deliveries, monthly partitions, dropped after retention
+ *  - whatsapp_messages           conversation messages (inbox), monthly partitions
+ *  - whatsapp_broadcast_sends    campaign sends, kept apart from conversations, monthly partitions
+ *  - whatsapp_inbound_keys       de-duplication of inbound provider ids (partitioned tables
+ *                                can't hold a unique key without the partition column)
+ * Partitioned tables use (id, created_at) as primary key; ids are UUIDv7 (time-ordered).
+ */
 return new class extends Migration
 {
+    private const PARTITIONED = ['whatsapp_webhook_events', 'whatsapp_messages', 'whatsapp_broadcast_sends'];
+
     public function up(): void
     {
-        Schema::create('whatsapp_numbers', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('workspace_id')->constrained('workspaces')->cascadeOnDelete();
-            $table->string('provider', 20);
-            $table->string('external_id');
-            $table->string('waba_id')->nullable();
-            $table->string('display_phone_number', 32)->nullable();
-            $table->string('verified_name')->nullable();
-            $table->text('credentials');
-            $table->string('status', 20)->default('active');
-            $table->timestamps();
-            $table->unique(['provider', 'external_id']);
-            $table->index('workspace_id');
-        });
+        DB::statement(<<<'SQL'
+            create table whatsapp_numbers (
+                id uuid primary key,
+                workspace_id uuid not null references workspaces (id) on delete cascade,
+                provider varchar(20) not null,
+                external_id varchar(255) not null,
+                waba_id varchar(255),
+                display_phone_number varchar(32),
+                verified_name varchar(255),
+                credentials text not null,
+                status varchar(20) not null default 'active',
+                created_at timestamptz,
+                updated_at timestamptz,
+                unique (provider, external_id)
+            )
+            SQL);
+        DB::statement('create index whatsapp_numbers_workspace_idx on whatsapp_numbers (workspace_id)');
         RowLevelSecurity::enable('whatsapp_numbers');
 
-        Schema::create('whatsapp_webhook_events', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('workspace_id')->constrained('workspaces')->cascadeOnDelete();
-            $table->foreignUuid('number_id')->constrained('whatsapp_numbers')->cascadeOnDelete();
-            $table->string('provider', 20);
-            $table->jsonb('payload');
-            $table->unsignedSmallInteger('attempts')->default(0);
-            $table->text('last_error')->nullable();
-            $table->timestampTz('processed_at')->nullable();
-            $table->timestampTz('created_at')->useCurrent();
-            $table->index(['workspace_id', 'processed_at']);
-        });
-        RowLevelSecurity::enable('whatsapp_webhook_events');
+        DB::statement(<<<'SQL'
+            create table whatsapp_webhook_events (
+                id uuid not null,
+                workspace_id uuid not null references workspaces (id) on delete cascade,
+                number_id uuid not null references whatsapp_numbers (id) on delete cascade,
+                provider varchar(20) not null,
+                payload jsonb not null,
+                attempts smallint not null default 0,
+                last_error text,
+                processed_at timestamptz,
+                created_at timestamptz not null default now(),
+                primary key (id, created_at)
+            ) partition by range (created_at)
+            SQL);
+        DB::statement('create index whatsapp_webhook_events_pending_idx on whatsapp_webhook_events (workspace_id, created_at) where processed_at is null');
 
-        Schema::create('whatsapp_messages', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('workspace_id')->constrained('workspaces')->cascadeOnDelete();
-            $table->foreignUuid('number_id')->constrained('whatsapp_numbers')->cascadeOnDelete();
-            $table->string('direction', 3);
-            $table->string('provider_message_id')->nullable();
-            $table->string('contact_phone', 20);
-            $table->string('type', 20);
-            $table->jsonb('body');
-            $table->string('status', 12);
-            $table->jsonb('error')->nullable();
-            $table->unsignedSmallInteger('attempts')->default(0);
-            $table->timestampTz('sent_at')->nullable();
-            $table->timestampTz('delivered_at')->nullable();
-            $table->timestampTz('read_at')->nullable();
-            $table->timestampTz('failed_at')->nullable();
-            $table->timestampTz('received_at')->nullable();
-            $table->timestampsTz();
-            $table->index(['workspace_id', 'contact_phone', 'created_at']);
-        });
-        DB::statement('create unique index whatsapp_messages_provider_id_unique on whatsapp_messages (number_id, provider_message_id) where provider_message_id is not null');
-        RowLevelSecurity::enable('whatsapp_messages');
+        DB::statement(<<<'SQL'
+            create table whatsapp_messages (
+                id uuid not null,
+                workspace_id uuid not null references workspaces (id) on delete cascade,
+                number_id uuid not null references whatsapp_numbers (id) on delete cascade,
+                direction varchar(3) not null,
+                provider_message_id varchar(255),
+                contact_phone varchar(20) not null,
+                type varchar(20) not null,
+                body jsonb not null,
+                status varchar(12) not null,
+                error jsonb,
+                attempts smallint not null default 0,
+                sent_at timestamptz,
+                delivered_at timestamptz,
+                read_at timestamptz,
+                failed_at timestamptz,
+                received_at timestamptz,
+                created_at timestamptz not null default now(),
+                updated_at timestamptz,
+                primary key (id, created_at)
+            ) partition by range (created_at)
+            SQL);
+        DB::statement('create index whatsapp_messages_provider_idx on whatsapp_messages (number_id, provider_message_id) where provider_message_id is not null');
+        DB::statement('create index whatsapp_messages_contact_idx on whatsapp_messages (workspace_id, contact_phone, created_at)');
+
+        DB::statement(<<<'SQL'
+            create table whatsapp_broadcast_sends (
+                id uuid not null,
+                workspace_id uuid not null references workspaces (id) on delete cascade,
+                number_id uuid not null references whatsapp_numbers (id) on delete cascade,
+                broadcast_id uuid not null,
+                contact_phone varchar(20) not null,
+                template varchar(512) not null,
+                provider_message_id varchar(255),
+                status varchar(12) not null,
+                error jsonb,
+                attempts smallint not null default 0,
+                sent_at timestamptz,
+                delivered_at timestamptz,
+                read_at timestamptz,
+                failed_at timestamptz,
+                created_at timestamptz not null default now(),
+                updated_at timestamptz,
+                primary key (id, created_at)
+            ) partition by range (created_at)
+            SQL);
+        DB::statement('create index whatsapp_broadcast_sends_provider_idx on whatsapp_broadcast_sends (number_id, provider_message_id) where provider_message_id is not null');
+        DB::statement('create index whatsapp_broadcast_sends_queue_idx on whatsapp_broadcast_sends (broadcast_id, status)');
+
+        foreach (self::PARTITIONED as $table) {
+            RowLevelSecurity::enable($table);
+            MonthlyPartitions::ensure($table, now(), monthsAhead: 3);
+        }
+
+        DB::statement(<<<'SQL'
+            create table whatsapp_inbound_keys (
+                number_id uuid not null references whatsapp_numbers (id) on delete cascade,
+                provider_message_id varchar(255) not null,
+                workspace_id uuid not null references workspaces (id) on delete cascade,
+                created_at timestamptz not null default now(),
+                primary key (number_id, provider_message_id)
+            )
+            SQL);
+        DB::statement('create index whatsapp_inbound_keys_created_idx on whatsapp_inbound_keys (created_at)');
+        RowLevelSecurity::enable('whatsapp_inbound_keys');
 
         // Webhook routing before a workspace is active: returns only workspace id + provider.
         $role = (string) config('database.connections.pgsql.role', 'trik_app');
@@ -93,8 +154,9 @@ return new class extends Migration
     {
         DB::statement('drop function if exists whatsapp_webhook_route_external(varchar, varchar)');
         DB::statement('drop function if exists whatsapp_webhook_route(uuid)');
-        Schema::dropIfExists('whatsapp_messages');
-        Schema::dropIfExists('whatsapp_webhook_events');
-        Schema::dropIfExists('whatsapp_numbers');
+
+        foreach (['whatsapp_inbound_keys', ...array_reverse(self::PARTITIONED), 'whatsapp_numbers'] as $table) {
+            Schema::dropIfExists($table);
+        }
     }
 };

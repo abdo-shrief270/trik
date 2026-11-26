@@ -11,5 +11,7 @@
 | [0007](0007-metered-processed-orders.md) | Plans include a bundle of processed orders | Accepted |
 | [0008](0008-shared-risk-network-opt-in.md) | Shared risk network: opt-in, outcomes only, after legal clearance | Accepted |
 | [0009](0009-mvp-on-a-bsp.md) | Run the MVP on a WhatsApp BSP until Trik is a Tech Provider | Proposed |
+| [0010](0010-scale-path-30k-messages-per-second.md) | Scale path to a 30,000 messages/second peak | Accepted |
+| [0011](0011-hostinger-first-aws-later.md) | Host on Hostinger first, move to AWS when a trigger is met | Accepted |
 
 New ADR: copy `template.md`, take the next number, open a pull request.

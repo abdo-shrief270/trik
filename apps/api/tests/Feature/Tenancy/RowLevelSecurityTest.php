@@ -105,7 +105,7 @@ it('turns row-level security on for every table with a workspace_id column', fun
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
         join pg_attribute a on a.attrelid = c.oid and a.attname = 'workspace_id' and not a.attisdropped
-        where c.relkind = 'r'
+        where c.relkind in ('r', 'p')
           and c.relname not in ('workspaces_members')
           and not c.relrowsecurity
         SQL);

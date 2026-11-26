@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Application;
 
-use Modules\WhatsApp\Application\Jobs\ProcessWebhookEvent;
+use Modules\WhatsApp\Application\Jobs\ProcessWebhookEvents;
 use Modules\WhatsApp\Domain\Provider;
 use Modules\WhatsApp\Infrastructure\Models\WebhookEvent;
 
@@ -23,7 +23,8 @@ final class AcceptWebhook
             'payload' => $payload,
         ]);
 
-        ProcessWebhookEvent::dispatch($event->id);
+        // At most one pending drain job per workspace; it picks this delivery up with any others.
+        ProcessWebhookEvents::dispatch($event->workspace_id);
 
         return $event;
     }
