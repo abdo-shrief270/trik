@@ -20,12 +20,15 @@ beforeEach(function (): void {
     $o = DB::connection('owner');
     $this->ids = ['user' => (string) Str::uuid7(), 'ws' => (string) Str::uuid7(), 'number' => (string) Str::uuid7()];
     $o->table('users')->insert(['id' => $this->ids['user'], 'name' => 'Sweep', 'email' => $this->ids['user'].'@probe.test', 'password' => 'x', 'created_at' => now(), 'updated_at' => now()]);
-    $o->table('workspaces')->insert(['id' => $this->ids['ws'], 'name' => 'Sweep', 'slug' => 'sweep-'.$this->ids['ws'], 'owner_id' => $this->ids['user'], 'created_at' => now(), 'updated_at' => now()]);
+    $this->ids['org'] = (string) Str::uuid7();
+    $o->table('workspaces_organizations')->insert(['id' => $this->ids['org'], 'name' => 'Sweep', 'created_at' => now(), 'updated_at' => now()]);
+    $o->table('workspaces')->insert(['id' => $this->ids['ws'], 'organization_id' => $this->ids['org'], 'name' => 'Sweep', 'slug' => 'sweep-'.$this->ids['ws'], 'created_at' => now(), 'updated_at' => now()]);
     $o->table('whatsapp_numbers')->insert(['id' => $this->ids['number'], 'workspace_id' => $this->ids['ws'], 'provider' => 'fake', 'external_id' => 'sweep-'.$this->ids['number'], 'credentials' => encrypt([]), 'created_at' => now(), 'updated_at' => now()]);
 });
 
 afterEach(function (): void {
     DB::connection('owner')->table('workspaces')->where('id', $this->ids['ws'])->delete(); // cascades
+    DB::connection('owner')->table('workspaces_organizations')->where('id', $this->ids['org'])->delete();
     DB::connection('owner')->table('users')->where('id', $this->ids['user'])->delete();
 });
 

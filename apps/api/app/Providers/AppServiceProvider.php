@@ -57,7 +57,7 @@ final class AppServiceProvider extends ServiceProvider
         Event::listen(function (ConnectionEstablished $event): void {
             $context = $this->app->make(TenantContext::class);
 
-            if ($context->has() && $event->connection->getName() === $this->app->make(DatabaseManager::class)->getDefaultConnection()) {
+            if ($context->isActive() && $event->connection->getName() === $this->app->make(DatabaseManager::class)->getDefaultConnection()) {
                 $context->apply($event->connection);
             }
         });

@@ -21,6 +21,14 @@ final class WorkspaceScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
-        $builder->where($model->qualifyColumn('workspace_id'), app(TenantContext::class)->require());
+        $context = app(TenantContext::class);
+
+        if ($context->isReadOnly()) {
+            $builder->whereIn($model->qualifyColumn('workspace_id'), $context->readable());
+
+            return;
+        }
+
+        $builder->where($model->qualifyColumn('workspace_id'), $context->require());
     }
 }

@@ -83,7 +83,8 @@ final class Order extends Model
 ```
 
 - The `workspace` route middleware reads `X-Workspace-Id`, checks membership and activates the workspace for the request.
-- The active workspace is written to the PostgreSQL setting `app.workspace_id`; the policy only matches rows with that id.
+- The active workspace is written to two PostgreSQL settings. Each tenant table has a **read** policy (`workspace_id` in `app.workspace_ids`) and **write** policies (`workspace_id = app.workspace_id`).
+- Organization reports use `OrganizationContext::run()` (ADR 0012). It is read-only across the viewer's own workspaces in one organization: writes are refused by Eloquent and by the database.
   With no workspace active, Eloquent throws `MissingWorkspaceContext` and raw SQL sees no rows: it **fails closed**.
 - Queued jobs carry the workspace in their payload and run inside it.
 - A test fails the build if any table with a `workspace_id` column does not have row-level security on.

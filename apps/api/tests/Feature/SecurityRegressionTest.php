@@ -202,8 +202,8 @@ it('F-12: the app role cannot touch the migrations table', function (): void {
     expect(DB::scalar("select has_table_privilege(current_user, 'migrations', 'select')"))->toBeFalse();
 });
 
-it('F-13: a user owns a limited number of workspaces', function (): void {
-    config(['trik.max_owned_workspaces' => 1]);
+it('F-13: an organization holds a limited number of workspaces', function (): void {
+    config(['trik.max_workspaces_per_organization' => 1]);
 
     $this->flushHeaders()->withHeaders($this->owner['headers'])->postJson('/v1/workspaces', ['name' => 'Second'])
         ->assertForbidden()->assertJsonPath('code', 'workspace-limit');

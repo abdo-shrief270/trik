@@ -146,6 +146,10 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Workspace'
+                  organizations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
         '401':
           $ref: '#/components/responses/Unauthenticated'
   /auth/forgot-password:
@@ -348,7 +352,7 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
     post:
       operationId: createWorkspace
-      summary: Create another workspace (the caller becomes owner)
+      summary: Create a workspace (in the organization you name, the one you manage, or a new one of your own)
       tags:
       - Workspaces
       requestBody:
@@ -363,6 +367,12 @@ paths:
                 name:
                   type: string
                   maxLength: 120
+                organization_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                  description: Required when you own or administer several organizations.
       responses:
         '201':
           description: Created
@@ -379,6 +389,30 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /organizations:
+    get:
+      operationId: listOrganizations
+      summary: Your organizations, each with only the workspaces you belong to (the switcher)
+      tags:
+      - Workspaces
+      responses:
+        '200':
+          description: Organizations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
   /workspace:
     get:
       operationId: currentWorkspace
@@ -1395,6 +1429,9 @@ components:
           type: string
         role:
           $ref: '#/components/schemas/RoleName'
+        organization_id:
+          type: string
+          format: uuid
     Session:
       type: object
       properties:
@@ -1602,3 +1639,29 @@ components:
           type:
           - string
           - 'null'
+    OrganizationRole:
+      type:
+      - string
+      - 'null'
+      enum:
+      - owner
+      - admin
+      - billing
+      - member
+      - null
+      description: Manages the organization; never gives access to a workspace's data (ADR 0012).
+    Organization:
+      type: object
+      description: One of the caller's organizations with only the workspaces they belong to.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationRole'
+        workspaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'

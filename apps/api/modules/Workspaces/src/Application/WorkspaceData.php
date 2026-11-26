@@ -14,11 +14,12 @@ final readonly class WorkspaceData
         public string $name,
         public string $slug,
         public WorkspaceRole $role,
+        public string $organizationId = '',
     ) {}
 
-    /** @return array{id: string, name: string, slug: string, role: string} */
+    /** @return array{id: string, name: string, slug: string, role: string, organization_id: string} */
     public function toArray(): array
     {
-        return ['id' => $this->id, 'name' => $this->name, 'slug' => $this->slug, 'role' => $this->role->value];
+        return ['id' => $this->id, 'name' => $this->name, 'slug' => $this->slug, 'role' => $this->role->value, 'organization_id' => $this->organizationId];
     }
 }
