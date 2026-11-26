@@ -150,6 +150,23 @@ check("free-form reply refused after the 24-hour window", r.status_code == 409 a
 r = call("GET", "/v1/inbox/conversations?cursor=eyJsYXN0X21lc3NhZ2VfYXQiOiInIG9yIDE9MSAtLSIsImlkIjoieCIsIl9wb2ludHNUb05leHRJdGVtcyI6dHJ1ZX0", A["token"], A["ws"])
 check("crafted inbox cursor answers 400", r.status_code == 400, r.status_code)
 
+# ---------------- orders
+r = call("POST", "/v1/orders", A["token"], A["ws"], {"customer_phone": "01000000001", "items": [{"title": "probe", "quantity": 1, "unit_price": 1000}],
+         "address": {"raw": "x"}, "workspace_id": B["ws"], "status": "delivered", "total": 1, "contact_id": None}, {"Idempotency-Key": str(uuid.uuid4())})
+check("order create ignores forged fields (status, total, workspace)", r.status_code == 201 and r.json()["data"]["status"] == "new" and r.json()["data"]["total"]["amount"] == 1000, f"{r.status_code} {r.text[:160]}")
+OA = r.json()["data"]["id"] if r.status_code == 201 else str(uuid.uuid4())
+for method, path, body in [
+    ("GET", f"/v1/orders/{OA}", None), ("PATCH", f"/v1/orders/{OA}", {"note": "x"}),
+    ("POST", f"/v1/orders/{OA}/confirm", None), ("POST", f"/v1/orders/{OA}/cancel", None),
+    ("GET", f"/v1/orders/{OA}/timeline", None), ("GET", f"/v1/inbox/conversations/{CON}/orders", None),
+]:
+    r = call(method, path, B["token"], B["ws"], body)
+    check(f"IDOR {method} {path.replace(OA, '{A-order}').replace(CON, '{A-conversation}')} from another workspace", r.status_code == 404, f"{r.status_code} {r.text[:120]}")
+r = call("POST", "/v1/orders", B["token"], B["ws"], {"contact_id": CA, "items": [{"title": "x", "quantity": 1, "unit_price": 1}]}, {"Idempotency-Key": str(uuid.uuid4())})
+check("cannot create an order for another workspace's contact", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("POST", "/v1/orders", A["token"], A["ws"], {"customer_phone": "01000000001", "items": [{"title": "x", "quantity": -5, "unit_price": 100}]}, {"Idempotency-Key": str(uuid.uuid4())})
+check("negative quantities are refused", r.status_code == 422, r.status_code)
+
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)

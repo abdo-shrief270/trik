@@ -20,5 +20,6 @@ return [
     // (pilot sellers first). Checked by the "feature:<name>" middleware.
     'features' => [
         'inbox' => env('FEATURE_INBOX', 'all'),
+        'orders' => env('FEATURE_ORDERS', 'all'),
     ],
 ];
