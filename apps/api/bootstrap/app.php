@@ -3,6 +3,7 @@
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Http\Middleware\LimitRequestSize;
+use App\Http\Middleware\RejectMethodOverride;
 use App\Http\Middleware\ResolveWorkspace;
 use App\Http\Middleware\SecurityHeaders;
 use App\Support\Http\Idempotency;
@@ -19,11 +20,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         then: function (): void {
             Route::get('/healthz', [HealthController::class, 'live'])->name('health.live');
-            Route::get('/readyz', [HealthController::class, 'ready'])->name('health.ready');
+            // readiness touches the database and cache: throttled so it can't be used to load them
+            Route::get('/readyz', [HealthController::class, 'ready'])->middleware('throttle:health')->name('health.ready');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prepend([RequestId::class, LimitRequestSize::class]);
+        // Behind Caddy (and Cloudflare), the client IP and scheme come from X-Forwarded-*. Trust only
+        // the proxy addresses: otherwise every user shares the proxy's IP in rate limits and lockouts,
+        // and trusting everyone would let clients fake their IP.
+        $middleware->trustProxies(at: array_values(array_filter(array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1'))))));
+        $middleware->prepend([RequestId::class, LimitRequestSize::class, RejectMethodOverride::class]);
         $middleware->append(SecurityHeaders::class);
         $middleware->statefulApi();
         $middleware->throttleApi();

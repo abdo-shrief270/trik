@@ -48,3 +48,6 @@ infra/terraform/**/*.tfvars
 
 # Claude desktop app output folder
 Claude outputs/
+
+# Redis snapshots from local runs
+dump.rdb

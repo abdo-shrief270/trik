@@ -113,9 +113,11 @@ check("an admin cannot create a role with powers admins lack (billing)", r.statu
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)
+# Rotating X-Forwarded-For: through the real proxy it is overwritten; probing from loopback (a trusted
+# proxy address) it is honoured, so the per-account limit (20 failures/hour, any IP) must still stop it.
 codes = [call("POST", "/v1/auth/login", body={"email": B["email"], "password": "wrong", "device_name": "p"},
-              headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code for i in range(7)]
-check("lockout not bypassed with X-Forwarded-For", codes[-1] == 429, codes)
+              headers={"X-Forwarded-For": f"10.0.{i // 250}.{i % 250}"}).status_code for i in range(22)]
+check("lockout not bypassed by rotating IPs", codes[-1] == 429, codes)
 C = signup("carol", verify=False)
 r = call("POST", "/v1/whatsapp/numbers", C["token"], C["ws"], {"provider": "fake", "external_id": f"u-{uuid.uuid4().hex[:6]}", "credentials": {"api_key": "k"}})
 check("unverified email cannot connect a WhatsApp number", r.status_code == 403, f"{r.status_code}: unverified account connected a number")
@@ -128,10 +130,24 @@ check("sign-in tokens are never replayed from the idempotency cache", r2.headers
 # ---------------- input handling
 r = call("GET", f"/v1/whatsapp/numbers/{NA}/messages?contact=1'%20or%20'1'='1", A["token"], A["ws"])
 check("bad contact filter answers 422, not 500", r.status_code == 422, r.status_code)
-r = call("GET", f"/v1/whatsapp/numbers/{NA}/messages?per_page=100000&cursor=garbage", A["token"], A["ws"])
-check("per_page capped and garbage cursor tolerated", r.status_code == 200 and r.json()["meta"]["per_page"] == 100, f"{r.status_code} {r.text[:100]}")
+r = call("GET", f"/v1/whatsapp/numbers/{NA}/messages?per_page=100000", A["token"], A["ws"])
+check("per_page capped", r.status_code == 200 and r.json()["meta"]["per_page"] == 100, f"{r.status_code} {r.text[:100]}")
+r = call("GET", f"/v1/whatsapp/numbers/{NA}/messages?cursor=garbage", A["token"], A["ws"])
+check("garbage cursor answers 400", r.status_code == 400, f"{r.status_code} {r.text[:100]}")
 r = call("POST", "/v1/whatsapp/numbers", A["token"], A["ws"], {"provider": "meta_cloud", "external_id": "123/../../me?fields=x", "waba_id": "1", "credentials": {"access_token": "t"}})
 check("provider ids are validated (no path injection into provider URLs)", r.status_code == 422 and r.json().get("code") == "validation-failed", f"{r.status_code} {r.text[:120]}")
+
+import base64
+evil_cursor = base64.urlsafe_b64encode(json.dumps({"created_at": "x' or 1=1 --", "id": "nope", "_pointsToNextItems": True}).encode()).decode().rstrip("=")
+r = call("GET", f"/v1/whatsapp/numbers/{NA}/messages?cursor={evil_cursor}", A["token"], A["ws"])
+check("crafted pagination cursor answers 4xx, not 500", 400 <= r.status_code < 500, f"{r.status_code} {r.text[:120]}")
+nested = "[" * 5000 + "]" * 5000
+r = call("POST", "/v1/auth/login", raw=nested)
+check("deeply nested JSON is refused cleanly", 400 <= r.status_code < 500, f"{r.status_code} {r.text[:120]}")
+r = call("POST", "/v1/workspaces", A["token"], body={"name": "x"}, headers={"X-HTTP-Method-Override": "DELETE"})
+check("method override is refused", r.status_code == 400, r.status_code)
+r = call("DELETE", "/v1/auth/me", A["token"])
+check("wrong method answers 405 problem+json", r.status_code == 405 and r.headers.get("Content-Type", "").startswith("application/problem+json"), f"{r.status_code} {r.headers.get('Content-Type')}")
 
 # ---------------- webhooks
 r = call("POST", f"/webhooks/whatsapp/fake/{NA}", body={"entry": []})

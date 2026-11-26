@@ -55,6 +55,19 @@ it('marks messages that were never sent as failed instead of sending them late',
     expect($row->status)->toBe('failed')->and(json_decode($row->error, true)['code'])->toBe('dispatch-lost');
 });
 
+it('marks broadcast sends stuck past the broadcast window as failed', function (): void {
+    $id = (string) Str::uuid7();
+    DB::connection('owner')->table('whatsapp_broadcast_sends')->insert([
+        'id' => $id, 'workspace_id' => $this->ids['ws'], 'number_id' => $this->ids['number'], 'broadcast_id' => (string) Str::uuid7(),
+        'contact_phone' => '201012345678', 'template' => 'sale', 'status' => 'queued',
+        'created_at' => now()->subHours(14), 'updated_at' => now()->subHours(14),
+    ]);
+
+    $this->artisan('whatsapp:sweep')->assertSuccessful();
+
+    expect(DB::connection('owner')->table('whatsapp_broadcast_sends')->where('id', $id)->value('status'))->toBe('failed');
+});
+
 it('still answers 200 when the queue is down, because the delivery is stored', function (): void {
     $owner = ownerWithWorkspace();
     $number = app(TenantContext::class)->run($owner['workspace'], fn () => app(ConnectNumber::class)

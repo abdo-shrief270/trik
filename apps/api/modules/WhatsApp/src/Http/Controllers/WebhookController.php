@@ -23,7 +23,14 @@ use Modules\WhatsApp\Infrastructure\WebhookRouter;
  */
 final class WebhookController
 {
+    /** Wrong secret on a known number, or an unsigned Meta call. */
     public const FAILURES_PER_MINUTE = 60;
+
+    /**
+     * Unknown number ids per IP. Higher, because a provider may keep calling a number that was
+     * removed, and all of a provider's traffic comes from a few IPs shared by every seller.
+     */
+    public const UNKNOWN_PER_MINUTE = 300;
 
     public function __construct(
         private readonly WebhookRouter $router,
@@ -34,7 +41,7 @@ final class WebhookController
 
     public function perNumber(Request $request, string $provider, string $number): JsonResponse
     {
-        $this->refuseIfFlooding($request);
+        $this->refuseIfFlooding($request, null, self::UNKNOWN_PER_MINUTE);
         $route = $this->router->byNumberId($number);
 
         if ($route === null || $route['provider']->value !== $provider || $route['provider'] === Provider::MetaCloud) {
@@ -105,11 +112,11 @@ final class WebhookController
      * more than FAILURES_PER_MINUTE from one IP (unknown numbers, unsigned Meta calls), or for one
      * number (wrong secret), and that IP or number is refused for a minute.
      */
-    private function refuseIfFlooding(Request $request, ?string $scope = null): void
+    private function refuseIfFlooding(Request $request, ?string $scope = null, int $limit = self::FAILURES_PER_MINUTE): void
     {
         $key = $this->failureKey($request, $scope);
 
-        if (RateLimiter::tooManyAttempts($key, self::FAILURES_PER_MINUTE)) {
+        if (RateLimiter::tooManyAttempts($key, $limit)) {
             throw new Problem(429, 'rate-limited', 'Too Many Requests', 'Too many invalid webhook deliveries.', [], [
                 'Retry-After' => (string) RateLimiter::availableIn($key),
             ]);

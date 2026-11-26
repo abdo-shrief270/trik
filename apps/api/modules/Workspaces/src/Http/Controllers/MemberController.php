@@ -24,7 +24,7 @@ final class MemberController
             ->where('workspace_id', $context->require())
             ->orderBy('created_at')
             ->orderBy('id')
-            ->cursorPaginate(CursorPage::perPage($request));
+            ->cursorPaginate(CursorPage::perPage($request), cursor: CursorPage::cursor($request, ['created_at' => 'datetime', 'id' => 'uuid']));
 
         $people = $users->find(array_values(array_map(fn (WorkspaceMember $m): string => $m->user_id, $page->items())));
 
