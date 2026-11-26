@@ -1,6 +1,6 @@
 # apps/web — Trik seller web app
 
-Nuxt 4, Vue 3, TypeScript, Tailwind CSS. Arabic (RTL) and English from day one.
+Nuxt 4.7, Vue 3.5, TypeScript 5.9, Tailwind CSS. Arabic (RTL) and English from day one.
 
 ## Create the app (first time only)
 

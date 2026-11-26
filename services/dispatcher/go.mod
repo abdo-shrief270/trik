@@ -1,3 +1,3 @@
 module trik.chat/services/dispatcher
 
-go 1.24
+go 1.27

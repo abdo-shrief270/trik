@@ -66,7 +66,7 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 - **API: logging, metrics, tracing, error tracking** — P1 · api, infra
 - **API: module loader and architecture tests** — P0 · api
 - **API: roles and permissions base** — P0 · api
-- **API: scaffold Laravel 12 with Octane (FrankenPHP)** — P0 · api
+- **API: scaffold Laravel 13 with Octane (FrankenPHP)** — P0 · api
 - **API: transactional outbox and Redpanda publisher** — P0 · api
 - **API: workspaces (multi-tenancy) with row-level security** — P0 · api
 - **Design: tokens pipeline (JSON → CSS + Dart)** — P1 · design
