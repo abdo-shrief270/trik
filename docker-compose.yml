@@ -16,7 +16,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports: ["${POSTGRES_PORT:-5432}:5432"]
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql   # PostgreSQL 18+ images keep data in a versioned subfolder
       - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       <<: *hc

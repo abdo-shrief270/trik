@@ -1,0 +1,127 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "trik/api",
+    "type": "project",
+    "description": "Trik core platform API",
+    "keywords": [
+        "trik"
+    ],
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "laravel/framework": "^13.17",
+        "laravel/octane": "^2.25",
+        "laravel/sanctum": "^4.4",
+        "laravel/tinker": "^3.0"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.14",
+        "laravel/pail": "^1.2.5",
+        "laravel/pao": "^1.0.6",
+        "laravel/pint": "^1.27",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "pestphp/pest": "^5.3",
+        "pestphp/pest-plugin-laravel": "^5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/",
+            "Modules\\Addresses\\": "modules/Addresses/src/",
+            "Modules\\Ai\\": "modules/Ai/src/",
+            "Modules\\Analytics\\": "modules/Analytics/src/",
+            "Modules\\Automations\\": "modules/Automations/src/",
+            "Modules\\Billing\\": "modules/Billing/src/",
+            "Modules\\Campaigns\\": "modules/Campaigns/src/",
+            "Modules\\Channels\\": "modules/Channels/src/",
+            "Modules\\Commerce\\": "modules/Commerce/src/",
+            "Modules\\Compliance\\": "modules/Compliance/src/",
+            "Modules\\Confirmation\\": "modules/Confirmation/src/",
+            "Modules\\Contacts\\": "modules/Contacts/src/",
+            "Modules\\Couriers\\": "modules/Couriers/src/",
+            "Modules\\Developer\\": "modules/Developer/src/",
+            "Modules\\Identity\\": "modules/Identity/src/",
+            "Modules\\Inbox\\": "modules/Inbox/src/",
+            "Modules\\MessageCosts\\": "modules/MessageCosts/src/",
+            "Modules\\Orders\\": "modules/Orders/src/",
+            "Modules\\Payments\\": "modules/Payments/src/",
+            "Modules\\Risk\\": "modules/Risk/src/",
+            "Modules\\WhatsApp\\": "modules/WhatsApp/src/",
+            "Modules\\Workspaces\\": "modules/Workspaces/src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/",
+            "Modules\\Addresses\\Tests\\": "modules/Addresses/tests/",
+            "Modules\\Ai\\Tests\\": "modules/Ai/tests/",
+            "Modules\\Analytics\\Tests\\": "modules/Analytics/tests/",
+            "Modules\\Automations\\Tests\\": "modules/Automations/tests/",
+            "Modules\\Billing\\Tests\\": "modules/Billing/tests/",
+            "Modules\\Campaigns\\Tests\\": "modules/Campaigns/tests/",
+            "Modules\\Channels\\Tests\\": "modules/Channels/tests/",
+            "Modules\\Commerce\\Tests\\": "modules/Commerce/tests/",
+            "Modules\\Compliance\\Tests\\": "modules/Compliance/tests/",
+            "Modules\\Confirmation\\Tests\\": "modules/Confirmation/tests/",
+            "Modules\\Contacts\\Tests\\": "modules/Contacts/tests/",
+            "Modules\\Couriers\\Tests\\": "modules/Couriers/tests/",
+            "Modules\\Developer\\Tests\\": "modules/Developer/tests/",
+            "Modules\\Identity\\Tests\\": "modules/Identity/tests/",
+            "Modules\\Inbox\\Tests\\": "modules/Inbox/tests/",
+            "Modules\\MessageCosts\\Tests\\": "modules/MessageCosts/tests/",
+            "Modules\\Orders\\Tests\\": "modules/Orders/tests/",
+            "Modules\\Payments\\Tests\\": "modules/Payments/tests/",
+            "Modules\\Risk\\Tests\\": "modules/Risk/tests/",
+            "Modules\\WhatsApp\\Tests\\": "modules/WhatsApp/tests/",
+            "Modules\\Workspaces\\Tests\\": "modules/Workspaces/tests/"
+        }
+    },
+    "scripts": {
+        "test": [
+            "@php artisan config:clear --ansi",
+            "@php vendor/bin/pest"
+        ],
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi"
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "lint": [
+            "@php vendor/bin/pint --test",
+            "@php vendor/bin/phpstan analyse --no-progress"
+        ],
+        "migrate": [
+            "@php artisan migrate --database=owner"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

@@ -36,6 +36,9 @@ scaffold-web: ## Create the Nuxt app in apps/web
 scaffold-mobile: ## Create the Flutter app in apps/mobile
 	./scripts/scaffold-mobile.sh
 
+migrate: ## Run API migrations (as the table owner)
+	cd $(API) && php artisan migrate --database=owner
+
 module: ## Create a backend module: make module name=Orders
 	./scripts/new-module.sh $(name)
 
@@ -47,7 +50,7 @@ lint: ## Lint everything that exists
 	@if [ -f $(MOBILE)/pubspec.yaml ]; then cd $(MOBILE) && flutter analyze; fi
 
 test: ## Run all test suites that exist
-	@if [ -f $(API)/composer.json ]; then cd $(API) && vendor/bin/pest --parallel; fi
+	@if [ -f $(API)/composer.json ]; then cd $(API) && vendor/bin/pest; fi
 	@if [ -f $(WEB)/package.json ]; then cd $(WEB) && pnpm test; fi
 	@for s in $(SERVICES); do if [ -f services/$$s/go.mod ]; then (cd services/$$s && go test -race ./...); fi; done
 	@if [ -f $(MOBILE)/pubspec.yaml ]; then cd $(MOBILE) && flutter test; fi
@@ -58,4 +61,4 @@ fmt: ## Format code
 	@for s in $(SERVICES); do if [ -f services/$$s/go.mod ]; then (cd services/$$s && gofmt -w .); fi; done
 	@if [ -f $(MOBILE)/pubspec.yaml ]; then cd $(MOBILE) && dart format .; fi
 
-.PHONY: help up down reset ps logs scaffold-api scaffold-web scaffold-mobile module lint test fmt
+.PHONY: help up down reset ps logs migrate scaffold-api scaffold-web scaffold-mobile module lint test fmt
