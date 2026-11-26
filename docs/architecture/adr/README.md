@@ -13,5 +13,6 @@
 | [0009](0009-mvp-on-a-bsp.md) | Run the MVP on a WhatsApp BSP until Trik is a Tech Provider | Proposed |
 | [0010](0010-scale-path-30k-messages-per-second.md) | Scale path to a 30,000 messages/second peak | Accepted |
 | [0011](0011-hostinger-first-aws-later.md) | Host on Hostinger first, move to AWS when a trigger is met | Accepted |
+| [0012](0012-organizations.md) | Organizations above workspaces | Accepted |
 
 New ADR: copy `template.md`, take the next number, open a pull request.
