@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Orders\Http\Controllers;
 
+use App\Support\Authorization\PermissionRegistry;
+use App\Support\Authorization\WorkspacePermissions;
 use App\Support\Http\CursorPage;
 use App\Support\Http\Problem;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -104,9 +107,10 @@ final class OrderController
     }
 
     /** Fix the address (structured, #344), flag it as needing a fix, or change the note. */
-    public function update(Request $request, string $order, ManageOrder $manage, OrderPresenter $presenter): JsonResponse
+    public function update(Request $request, string $order, ManageOrder $manage, OrderPresenter $presenter, WorkspacePermissions $permissions, PermissionRegistry $registry, TenantContext $tenant): JsonResponse
     {
         $data = $request->validate([
+            'owner_id' => ['sometimes', 'nullable', 'uuid'],
             'address_needs_fix' => ['sometimes', 'boolean'],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
             ...AddressRules::for('address'),
@@ -122,6 +126,17 @@ final class OrderController
 
         if (array_key_exists('note', $data)) {
             $model = $manage->note($model, $data['note'], $actor);
+        }
+
+        if (array_key_exists('owner_id', $data)) {
+            $owner = $data['owner_id'];
+            if ($owner !== null) {
+                $access = $permissions->access($tenant->require(), $owner);
+                if ($access === null || ! $registry->allows($access->grants, 'orders.orders.view')) {
+                    throw Problem::unprocessable('owner-cannot-view', 'That person is not on this workspace\'s team or cannot see orders.');
+                }
+            }
+            $model = $manage->assignOwner($model, $owner, $actor);
         }
 
         return response()->json(['data' => $presenter->one($model)]);

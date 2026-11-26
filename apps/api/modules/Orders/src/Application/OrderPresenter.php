@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Orders\Application;
 
 use Illuminate\Support\Collection;
+use Modules\Orders\Domain\BoardStage;
 use Modules\Orders\Infrastructure\Models\Order;
 use Modules\Orders\Infrastructure\Models\OrderItem;
 
@@ -41,6 +42,10 @@ final class OrderPresenter
             'number' => $o->number,
             'source' => $o->source->value,
             'status' => $o->status->value,
+            'stage' => BoardStage::of($o->status, $o->needs_call_at !== null)->value,
+            'owner_id' => $o->owner_id,
+            'risk_score' => $o->risk_score,
+            'needs_call' => $o->needs_call_at === null ? null : ['since' => $o->needs_call_at->toIso8601String(), 'reason' => $o->needs_call_reason],
             'next_action' => $o->nextAction()?->value,
             'contact_id' => $o->contact_id,
             'customer' => ['name' => $o->customer_name, 'phone' => $o->customer_phone],

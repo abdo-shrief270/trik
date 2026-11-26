@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Orders\Http\Controllers\BoardController;
 use Modules\Orders\Http\Controllers\OrderController;
 
 Route::middleware(['auth:sanctum', 'verified.email', 'workspace', 'feature:orders'])->prefix('orders')->name('orders.')->group(function (): void {
     Route::get('/', [OrderController::class, 'index'])->middleware('can:orders.orders.view')->name('index');
+    Route::get('board', [BoardController::class, 'index'])->middleware('can:orders.orders.view')->name('board');
     Route::post('/', [OrderController::class, 'store'])->middleware(['can:orders.orders.create', 'idempotency:required'])->name('store');
 
     Route::prefix('{order}')->whereUuid('order')->group(function (): void {

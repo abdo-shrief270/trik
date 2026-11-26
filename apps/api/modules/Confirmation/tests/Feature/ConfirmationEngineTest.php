@@ -54,11 +54,6 @@ beforeEach(function (): void {
     ])->assertOk();
 });
 
-function inWs(string $ws, callable $fn): mixed
-{
-    return app(TenantContext::class)->run($ws, $fn);
-}
-
 it('sends the confirmation template with the three buttons as soon as a COD order arrives', function (): void {
     $order = inWs($this->ws, fn () => app(RecordOrder::class)->handle(codOrder()));
 

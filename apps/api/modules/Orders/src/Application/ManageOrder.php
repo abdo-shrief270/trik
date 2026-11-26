@@ -44,6 +44,10 @@ final class ManageOrder
             }
 
             $order->status = $to;
+            if (! $to->isPendingConfirmation()) {
+                $order->needs_call_at = null;
+                $order->needs_call_reason = null;
+            }
             $column = $to->timestampColumn();
             if ($column !== null) {
                 $order->{$column} = now();
@@ -72,6 +76,32 @@ final class ManageOrder
     public function moveById(string $orderId, OrderStatus $to, ?string $actorId, string $channel, ?string $reason = null): void
     {
         $this->moveTo(Order::query()->findOrFail($orderId), $to, $actorId, $channel, $reason);
+    }
+
+    /** Confirmation needs a person (no reply, a change requested…): the order joins "needs a call". */
+    public function markNeedsCall(string $orderId, string $reason): void
+    {
+        $order = Order::query()->findOrFail($orderId);
+
+        if ($order->status->isPendingConfirmation() && $order->needs_call_at === null) {
+            $this->save($order, ['needs_call_at' => now(), 'needs_call_reason' => $reason], 'needs_call', null, ['reason' => $reason]);
+        }
+    }
+
+    /** Back to waiting for the customer (e.g. the team sent another reminder). */
+    public function clearNeedsCall(string $orderId): void
+    {
+        $order = Order::query()->findOrFail($orderId);
+
+        if ($order->needs_call_at !== null) {
+            $this->save($order, ['needs_call_at' => null, 'needs_call_reason' => null], 'needs_call_cleared', null);
+        }
+    }
+
+    /** Who is responsible for the order (null = nobody). The caller checks the person may see orders. */
+    public function assignOwner(Order $order, ?string $ownerId, ?string $actorId): Order
+    {
+        return $this->save($order, ['owner_id' => $ownerId], 'owner_changed', $actorId, ['owner_id' => $ownerId]);
     }
 
     /** Puts the agent's structured address on the order (#344); the store's original stays in `raw`. */

@@ -177,6 +177,13 @@ check("template names are restricted to Meta's format", r.status_code == 422, r.
 r = call("GET", f"/v1/orders/{OA}/confirmation", B["token"], B["ws"])
 check("IDOR GET /v1/orders/{A-order}/confirmation from another workspace", r.status_code == 404, r.status_code)
 
+r = call("POST", "/v1/confirmation/bulk", B["token"], B["ws"], {"action": "cancel", "order_ids": [OA]}, {"Idempotency-Key": str(uuid.uuid4())})
+check("bulk actions cannot touch another workspace's orders", r.status_code == 200 and r.json()["data"][0]["result"] == "not_found", f"{r.status_code} {r.text[:160]}")
+r = call("GET", "/v1/orders/board?governorate=C%27%20or%201%3D1--", A["token"], A["ws"])
+check("board filters are validated", r.status_code == 422, r.status_code)
+r = call("PATCH", f"/v1/orders/{OA}", A["token"], A["ws"], {"owner_id": B["id"]})
+check("orders cannot be given to someone outside the team", r.status_code == 422, r.status_code)
+
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)

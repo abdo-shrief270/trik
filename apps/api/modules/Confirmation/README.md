@@ -59,8 +59,9 @@ Suggested template (category *utility*, Arabic):
 |---|---|---|
 | GET / PUT | `/v1/confirmation/settings` | `confirmation.settings.view` / `confirmation.settings.manage` |
 | GET | `/v1/orders/{id}/confirmation` | `orders.orders.view` |
+| POST | `/v1/confirmation/bulk` (`confirm`, `cancel`, `remind`; up to 100; per-order results; audit log) | `orders.orders.confirm` |
 
 ## Not yet
 
 - Writing the confirmed / cancelled status back to the store (with the connectors, #332 #117).
-- The call queue and SMS steps of the ladder (M5); the confirmation board (#107).
+- The call queue and SMS steps of the ladder (M5).

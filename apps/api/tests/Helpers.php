@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\ResolveWorkspace;
 use App\Support\Realtime\Realtime;
+use App\Support\Tenancy\TenantContext;
 use Modules\Identity\Infrastructure\Models\User;
 use Modules\WhatsApp\Infrastructure\Models\WhatsAppNumber;
 use Modules\WhatsApp\Tests\Fixtures\CloudApi;
@@ -87,4 +88,10 @@ function teammate(string $workspace, WorkspaceRole $role): array
         'Authorization' => 'Bearer '.$user->createToken('t')->plainTextToken,
         'X-Workspace-Id' => $workspace,
     ]];
+}
+
+/** Runs the callback inside a workspace. */
+function inWs(string $ws, callable $fn): mixed
+{
+    return app(TenantContext::class)->run($ws, $fn);
 }

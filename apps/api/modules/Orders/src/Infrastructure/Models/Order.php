@@ -44,6 +44,11 @@ use Modules\Orders\Domain\OrderStatus;
  * @property Carbon|null $shipped_at
  * @property Carbon|null $delivered_at
  * @property Carbon|null $returned_at
+ * @property string|null $owner_id
+ * @property Carbon|null $needs_call_at
+ * @property string|null $needs_call_reason
+ * @property int|null $risk_score
+ * @property string|null $stage
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -54,7 +59,8 @@ final class Order extends Model
 
     protected $table = 'orders_orders';
 
-    protected $guarded = ['id', 'workspace_id'];
+    // stage is computed by the database
+    protected $guarded = ['id', 'workspace_id', 'stage'];
 
     /** The database defaults, so a freshly created model has them too. */
     protected $attributes = ['address_needs_fix' => false, 'address' => '{}'];
@@ -79,6 +85,8 @@ final class Order extends Model
             'shipped_at' => 'datetime',
             'delivered_at' => 'datetime',
             'returned_at' => 'datetime',
+            'needs_call_at' => 'datetime',
+            'risk_score' => 'integer',
         ];
     }
 

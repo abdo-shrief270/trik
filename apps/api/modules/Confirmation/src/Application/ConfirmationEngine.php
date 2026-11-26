@@ -142,6 +142,43 @@ final class ConfirmationEngine
         });
     }
 
+    /**
+     * The team asks for another message now (bulk "remind" on the board): a reminder on an open or
+     * escalated run, or the first message when the order has none yet.
+     *
+     * @return 'sent'|'started'|'skipped'
+     */
+    public function remindNow(string $orderId): string
+    {
+        $order = $this->orders->find($orderId);
+        $settings = ConfirmationSettings::current();
+
+        if ($order === null || ! $order->status->isPendingConfirmation() || ! $order->isCod() || ! $settings->isActive()) {
+            return 'skipped';
+        }
+
+        $run = ConfirmationRun::query()->where('order_id', $orderId)->first();
+        if ($run === null) {
+            $this->start($orderId);
+
+            return 'started';
+        }
+
+        return DB::transaction(function () use ($run, $order, $settings): string {
+            /** @var ConfirmationRun $run */
+            $run = ConfirmationRun::query()->lockForUpdate()->findOrFail($run->id);
+            if (! $run->status->isOpen() && $run->status !== RunStatus::Escalated) {
+                return 'skipped';
+            }
+            if ($run->status === RunStatus::Escalated) {
+                $this->manage->clearNeedsCall($order->id);
+            }
+            $this->sendTemplate($run, $order, $settings, first: $run->status === RunStatus::Pending);
+
+            return $run->status === RunStatus::Sent ? 'sent' : 'skipped';
+        });
+    }
+
     /** The team (or the store) settled the order: stop reminding. */
     public function settled(string $orderId): void
     {
@@ -203,6 +240,7 @@ final class ConfirmationEngine
     {
         $this->close($run, RunStatus::Escalated, $reason);
         OrderTimeline::add($order->id, 'confirmation_escalated', null, ['reason' => $reason]);
+        $this->manage->markNeedsCall($order->id, $reason); // the "needs a call" column on the board
 
         $message = [['channel' => 'inbox:'.$run->workspace_id, 'data' => [
             'type' => 'confirmation.escalated', 'order_id' => $order->id, 'contact_id' => $order->contactId, 'reason' => $reason,

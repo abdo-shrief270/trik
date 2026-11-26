@@ -2168,6 +2168,12 @@ paths:
                   type:
                   - string
                   - 'null'
+                owner_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                  description: Who is responsible (422 owner-cannot-view if they are not on the team or cannot see orders)
       x-permission: orders.orders.update
       description: Requires the `orders.orders.update` permission in the workspace. A fixed address needs governorate, area and street (422 `address-incomplete`); store updates no longer overwrite it. Returns 404 where orders are not rolled out yet (feature flag).
       responses:
@@ -2469,6 +2475,196 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /orders/board:
+    get:
+      operationId: getConfirmationBoard
+      summary: 'The confirmation board: one column (paged) and the counts of all columns'
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: stage
+        schema:
+          type: string
+          enum:
+          - new
+          - awaiting_customer
+          - needs_call
+          - confirmed
+          - cancelled
+          default: new
+      - in: query
+        name: owner
+        schema:
+          type: string
+        description: '`me`, `unassigned` or a user id'
+      - in: query
+        name: governorate
+        schema:
+          type: string
+        description: ISO 3166-2:EG code
+      - in: query
+        name: min_total
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: max_total
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: min_risk
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 100
+      - in: query
+        name: placed_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: placed_to
+        schema:
+          type: string
+          format: date
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Open columns list the longest-waiting first; confirmed and cancelled newest first. Counts use the same filters. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Board
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                - counts
+                - stage
+                properties:
+                  stage:
+                    type: string
+                    enum:
+                    - new
+                    - awaiting_customer
+                    - needs_call
+                    - confirmed
+                    - cancelled
+                  counts:
+                    type: object
+                    properties:
+                      new:
+                        type: integer
+                      awaiting_customer:
+                        type: integer
+                      needs_call:
+                        type: integer
+                      confirmed:
+                        type: integer
+                      cancelled:
+                        type: integer
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/Order'
+                      - type: object
+                        properties:
+                          waiting_seconds:
+                            type: integer
+                            description: 'Ageing timer: since the order was placed, or since it needed a call'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /confirmation/bulk:
+    post:
+      operationId: bulkConfirmationAction
+      summary: Confirm, cancel or remind up to 100 orders
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              - order_ids
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - confirm
+                  - cancel
+                  - remind
+                order_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+                    format: uuid
+                reason:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+      x-permission: orders.orders.confirm
+      description: Requires the `orders.orders.confirm` permission in the workspace. Each order is handled on its own and reported; written to the workspace audit log (`orders.bulk_<action>`) and each order's timeline. Remind sends the confirmation template again now (or the first one when there is none). Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: One result per order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        order_id:
+                          type: string
+                          format: uuid
+                        result:
+                          type: string
+                          enum:
+                          - ok
+                          - sent
+                          - started
+                          - skipped
+                          - not_found
+                          - error
+                        code:
+                          type: string
+                          description: 'With result=error: invalid-transition, address-needs-fix…'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 components:
   securitySchemes:
     bearerAuth:
@@ -2948,6 +3144,36 @@ components:
           - string
           - 'null'
           format: date-time
+        stage:
+          type: string
+          enum:
+          - new
+          - awaiting_customer
+          - needs_call
+          - confirmed
+          - cancelled
+          description: Column on the confirmation board
+        owner_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        risk_score:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 100
+        needs_call:
+          type:
+          - object
+          - 'null'
+          properties:
+            since:
+              type: string
+              format: date-time
+            reason:
+              type: string
     WhatsAppMessage:
       title: WhatsAppMessage
       type: object
