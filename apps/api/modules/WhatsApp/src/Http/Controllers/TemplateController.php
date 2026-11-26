@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\Problem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Modules\WhatsApp\Application\Contracts\WhatsAppProvider;
@@ -52,7 +53,9 @@ final class TemplateController
     {
         $adapter = $providers->for(WhatsAppNumber::query()->findOrFail($number)->toConnected());
 
-        abort_unless($adapter->supports(Capability::Templates), 422, 'This number\'s provider does not manage templates.');
+        if (! $adapter->supports(Capability::Templates)) {
+            throw Problem::unprocessable('capability-unsupported', 'This number\'s provider does not manage templates.');
+        }
 
         return $adapter;
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\Problem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -48,7 +49,7 @@ final class NumberController
         $provider = Provider::from($data['provider']);
 
         if (WhatsAppNumber::query()->where('provider', $provider)->where('external_id', $data['external_id'])->exists()) {
-            return response()->json(['message' => 'This number is already connected.'], 409);
+            throw Problem::conflict('number-already-connected', 'This number is already connected.');
         }
 
         try {
@@ -60,7 +61,7 @@ final class NumberController
                 $data['display_phone_number'] ?? null,
             );
         } catch (ProviderRequestFailed $e) {
-            return response()->json(['message' => 'The provider rejected the connection: '.$e->getMessage(), 'provider_error' => $e->toArray()], 422);
+            throw Problem::unprocessable('provider-rejected', 'The provider rejected the connection: '.$e->getMessage(), ['provider_error' => $e->toArray()]);
         }
 
         return response()->json(['data' => [...$number->toApi(), 'webhook_url' => WebhookUrls::forNumber($number->id, $provider)]], 201);

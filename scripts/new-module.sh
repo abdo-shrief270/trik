@@ -26,11 +26,11 @@ use App\\Support\\Modules\\ModuleServiceProvider;
 
 /**
  * Registered automatically. Migrations in database/migrations and routes in
- * src/Http/routes.php (mounted under /api/v1) are loaded by the base class.
+ * src/Http/routes.php (mounted under /v1) are loaded by the base class.
  */
 final class ${name}ServiceProvider extends ModuleServiceProvider
 {
-    public function register(): void
+    protected function registerModule(): void
     {
         //
     }

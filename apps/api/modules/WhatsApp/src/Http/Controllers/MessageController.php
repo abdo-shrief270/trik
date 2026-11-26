@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\CursorPage;
+use App\Support\Http\Problem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -21,14 +23,14 @@ final class MessageController
 {
     public function index(Request $request, string $number): JsonResponse
     {
-        $messages = Message::query()
+        $page = Message::query()
             ->where('number_id', WhatsAppNumber::query()->findOrFail($number)->id)
             ->when($request->filled('contact'), fn ($q) => $q->where('contact_phone', PhoneNumber::fromString($request->string('contact')->toString(), $this->country())->digits))
-            ->latest()
-            ->limit(min((int) $request->query('limit', 50), 200))
-            ->get();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->cursorPaginate(CursorPage::perPage($request));
 
-        return response()->json(['data' => $messages->map(fn (Message $m): array => $m->toApi())->values()]);
+        return CursorPage::response($page, fn (Message $m): array => $m->toApi());
     }
 
     public function store(Request $request, string $number, SendMessage $send): JsonResponse
@@ -51,7 +53,7 @@ final class MessageController
             $to = PhoneNumber::fromString($data['to'], $this->country());
             $message = $this->message($data);
         } catch (InvalidArgumentException $e) {
-            return response()->json(['message' => $e->getMessage(), 'errors' => ['to' => [$e->getMessage()]]], 422);
+            throw Problem::invalid([str_contains($e->getMessage(), 'phone') ? 'to' : 'message' => [$e->getMessage()]]);
         }
 
         $row = $send->handle(WhatsAppNumber::query()->findOrFail($number), $to, $message, $data['reply_to'] ?? null);

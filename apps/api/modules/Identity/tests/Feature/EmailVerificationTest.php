@@ -26,7 +26,7 @@ it('verifies the email from the signed link and redirects to the web app', funct
 it('rejects a tampered link', function (): void {
     $user = User::factory()->unverified()->create();
 
-    $this->getJson("/api/v1/auth/email/verify/{$user->id}/".sha1($user->email).'?signature=forged')->assertForbidden();
+    $this->getJson("/v1/auth/email/verify/{$user->id}/".sha1($user->email).'?signature=forged')->assertForbidden();
 });
 
 it('resends the verification email', function (): void {
@@ -34,7 +34,7 @@ it('resends the verification email', function (): void {
     $user = User::factory()->unverified()->create();
 
     $this->withToken($user->createToken('x')->plainTextToken)
-        ->postJson('/api/v1/auth/email/verification-notification')
+        ->postJson('/v1/auth/email/verification-notification')
         ->assertAccepted();
 
     Notification::assertSentTo($user, VerifyEmail::class);

@@ -16,6 +16,18 @@ final class WhatsAppServiceProvider extends ModuleServiceProvider
         $this->app->singleton(FakeWhatsApp::class);
     }
 
+    protected function permissions(): array
+    {
+        return [
+            'whatsapp.numbers.view' => 'See connected WhatsApp numbers',
+            'whatsapp.numbers.manage' => 'Connect and disconnect WhatsApp numbers',
+            'whatsapp.templates.view' => 'See message templates',
+            'whatsapp.templates.manage' => 'Create and delete message templates',
+            'whatsapp.messages.view' => 'Read the message log',
+            'whatsapp.messages.send' => 'Send messages',
+        ];
+    }
+
     protected function bootModule(): void
     {
         if ($this->app->runningInConsole()) {

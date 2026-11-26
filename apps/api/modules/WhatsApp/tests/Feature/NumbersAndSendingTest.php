@@ -16,7 +16,7 @@ use Modules\WhatsApp\Infrastructure\Providers\FakeWhatsApp;
 
 function connectFake(array $headers, string $externalId = 'fake-1'): string
 {
-    return test()->withHeaders($headers)->postJson('/api/v1/whatsapp/numbers', [
+    return test()->withHeaders($headers)->postJson('/v1/whatsapp/numbers', [
         'provider' => 'fake', 'external_id' => $externalId, 'credentials' => ['api_key' => 'x'],
     ])->assertCreated()->json('data.id');
 }
@@ -25,7 +25,7 @@ it('connects a 360dialog number and registers its webhook with a secret', functi
     Http::fake(['waba-v2.360dialog.io/v1/configs/webhook' => Http::response(['ok' => true])]);
     $owner = ownerWithWorkspace();
 
-    $response = $this->withHeaders($owner['headers'])->postJson('/api/v1/whatsapp/numbers', [
+    $response = $this->withHeaders($owner['headers'])->postJson('/v1/whatsapp/numbers', [
         'provider' => '360dialog',
         'external_id' => 'channel-abc',
         'display_phone_number' => '+20 100 000 0000',
@@ -41,7 +41,7 @@ it('connects a 360dialog number and registers its webhook with a secret', functi
         && $r['url'] === $response->json('data.webhook_url')
         && strlen($r['headers']['X-Trik-Webhook-Secret']) === 48);
 
-    $this->withHeaders($owner['headers'])->getJson('/api/v1/whatsapp/numbers')
+    $this->withHeaders($owner['headers'])->getJson('/v1/whatsapp/numbers')
         ->assertOk()
         ->assertJsonPath('data.0.id', $id)
         ->assertJsonPath('data.0.capabilities', ['templates', 'media', 'interactive_messages', 'mark_read', 'configure_webhook']);
@@ -50,7 +50,7 @@ it('connects a 360dialog number and registers its webhook with a secret', functi
 it('stores credentials encrypted', function (): void {
     Http::fake(['*' => Http::response(['ok' => true])]);
     $owner = ownerWithWorkspace();
-    $this->withHeaders($owner['headers'])->postJson('/api/v1/whatsapp/numbers', [
+    $this->withHeaders($owner['headers'])->postJson('/v1/whatsapp/numbers', [
         'provider' => '360dialog', 'external_id' => 'channel-enc', 'credentials' => ['api_key' => 'plain-secret-key'],
     ])->assertCreated();
 
@@ -62,7 +62,7 @@ it('refuses a number that is already connected', function (): void {
     $owner = ownerWithWorkspace();
     connectFake($owner['headers'], 'dup');
 
-    $this->withHeaders($owner['headers'])->postJson('/api/v1/whatsapp/numbers', [
+    $this->withHeaders($owner['headers'])->postJson('/v1/whatsapp/numbers', [
         'provider' => 'fake', 'external_id' => 'dup', 'credentials' => ['api_key' => 'x'],
     ])->assertConflict();
 });
@@ -72,7 +72,7 @@ it('queues, sends and logs a message', function (): void {
     $owner = ownerWithWorkspace();
     $number = connectFake($owner['headers']);
 
-    $response = $this->withHeaders($owner['headers'])->postJson("/api/v1/whatsapp/numbers/{$number}/messages", [
+    $response = $this->withHeaders($owner['headers'])->withHeader('Idempotency-Key', (string) str()->uuid())->postJson("/v1/whatsapp/numbers/{$number}/messages", [
         'to' => '01012345678', 'type' => 'text', 'text' => 'أوردرك اتشحن 🚚',
     ])->assertAccepted();
 
@@ -81,7 +81,7 @@ it('queues, sends and logs a message', function (): void {
         ->and($sent[0]['to']->digits)->toBe('201012345678')
         ->and($sent[0]['message'])->toBeInstanceOf(TextMessage::class);
 
-    $this->withHeaders($owner['headers'])->getJson("/api/v1/whatsapp/numbers/{$number}/messages")
+    $this->withHeaders($owner['headers'])->getJson("/v1/whatsapp/numbers/{$number}/messages")
         ->assertJsonPath('data.0.id', $response->json('data.id'))
         ->assertJsonPath('data.0.status', 'sent')
         ->assertJsonPath('data.0.provider_message_id', $sent[0]['id']);
@@ -93,7 +93,7 @@ it('validates the recipient', function (): void {
     $owner = ownerWithWorkspace();
     $number = connectFake($owner['headers']);
 
-    $this->withHeaders($owner['headers'])->postJson("/api/v1/whatsapp/numbers/{$number}/messages", [
+    $this->withHeaders($owner['headers'])->withHeader('Idempotency-Key', (string) str()->uuid())->postJson("/v1/whatsapp/numbers/{$number}/messages", [
         'to' => 'not-a-number', 'type' => 'text', 'text' => 'hi',
     ])->assertUnprocessable()->assertJsonValidationErrors('to');
 });
@@ -130,7 +130,7 @@ it('marks a message failed on a permanent error', function (): void {
     $number = connectFake($owner['headers']);
     app(FakeWhatsApp::class)->failNext(new ProviderRequestFailed('not on WhatsApp', false, 400, '131026'));
 
-    $this->withHeaders($owner['headers'])->postJson("/api/v1/whatsapp/numbers/{$number}/messages", [
+    $this->withHeaders($owner['headers'])->withHeader('Idempotency-Key', (string) str()->uuid())->postJson("/v1/whatsapp/numbers/{$number}/messages", [
         'to' => '01012345678', 'type' => 'text', 'text' => 'hi',
     ])->assertAccepted()->assertJsonPath('data.status', 'failed');
 });
@@ -139,15 +139,15 @@ it('manages templates through the number\'s provider', function (): void {
     $owner = ownerWithWorkspace();
     $number = connectFake($owner['headers']);
 
-    $this->withHeaders($owner['headers'])->postJson("/api/v1/whatsapp/numbers/{$number}/templates", [
+    $this->withHeaders($owner['headers'])->postJson("/v1/whatsapp/numbers/{$number}/templates", [
         'name' => 'order_shipped', 'language' => 'ar', 'category' => 'utility',
         'components' => [['type' => 'BODY', 'text' => 'أوردرك {{1}} اتشحن']],
     ])->assertCreated();
 
-    $this->withHeaders($owner['headers'])->getJson("/api/v1/whatsapp/numbers/{$number}/templates")
+    $this->withHeaders($owner['headers'])->getJson("/v1/whatsapp/numbers/{$number}/templates")
         ->assertOk()->assertJsonPath('data.0.name', 'order_shipped');
 
-    $this->withHeaders($owner['headers'])->deleteJson("/api/v1/whatsapp/numbers/{$number}/templates/order_shipped")->assertNoContent();
+    $this->withHeaders($owner['headers'])->deleteJson("/v1/whatsapp/numbers/{$number}/templates/order_shipped")->assertNoContent();
 });
 
 it('never exposes or uses another workspace\'s number', function (): void {
@@ -156,8 +156,8 @@ it('never exposes or uses another workspace\'s number', function (): void {
     $numberA = connectFake($a['headers']);
     app('auth')->forgetGuards();
 
-    $this->withHeaders($b['headers'])->getJson('/api/v1/whatsapp/numbers')->assertOk()->assertJsonCount(0, 'data');
-    $this->withHeaders($b['headers'])->postJson("/api/v1/whatsapp/numbers/{$numberA}/messages", [
+    $this->withHeaders($b['headers'])->getJson('/v1/whatsapp/numbers')->assertOk()->assertJsonCount(0, 'data');
+    $this->withHeaders($b['headers'])->withHeader('Idempotency-Key', (string) str()->uuid())->postJson("/v1/whatsapp/numbers/{$numberA}/messages", [
         'to' => '01012345678', 'type' => 'text', 'text' => 'hi',
     ])->assertNotFound();
 

@@ -1,74 +1,1604 @@
+# Source of truth for the HTTP API (change it first, then the code). tests/Feature/OpenApiCoverageTest.php checks the routes against it.
 openapi: 3.1.0
 info:
   title: Trik API
-  version: 1.0.0-draft
-  description: Trik public and app API. Draft.
+  version: 1.0.0
+  description: 'Trik app and public API. Errors are RFC 9457 problem+json; lists use cursor pagination; writes accept Idempotency-Key. Operations
+    marked `x-status: planned` are not built yet. A test fails if a built route is missing here.'
 servers:
-  - url: https://api.trik.chat/v1
+- url: https://api.trik.chat/v1
+- url: http://localhost:8080/v1
+  description: Local
 security:
-  - bearerAuth: []
+- bearerAuth: []
+- cookieSession: []
+tags:
+- name: Auth
+- name: Workspaces
+- name: Team
+- name: WhatsApp
+- name: Orders
+- name: Confirmation
 paths:
+  /auth/register:
+    post:
+      operationId: register
+      summary: 'Sign up: creates the user and their first workspace'
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - email
+              - password
+              - password_confirmation
+              - workspace_name
+              properties:
+                name:
+                  type: string
+                  maxLength: 120
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 10
+                password_confirmation:
+                  type: string
+                workspace_name:
+                  type: string
+                  maxLength: 120
+                device_name:
+                  type: string
+                  description: Send from mobile/API clients to get a token. Web (Sanctum stateful) gets a session cookie.
+      security: []
+      responses:
+        '201':
+          description: Signed up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  workspace:
+                    $ref: '#/components/schemas/Workspace'
+                  token:
+                    type: string
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Sign in (token with device_name, cookie session for the web app)
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                device_name:
+                  type: string
+      security: []
+      responses:
+        '200':
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Sign out this device
+      tags:
+      - Auth
+      responses:
+        '204':
+          description: Signed out
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/me:
+    get:
+      operationId: me
+      summary: The signed-in user and their workspaces
+      tags:
+      - Auth
+      responses:
+        '200':
+          description: Me
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      summary: Email a password reset link (same answer whether or not the account exists)
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      security: []
+      responses:
+        '200':
+          description: Sent if the account exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      summary: Set a new password with the emailed token (signs out every device)
+      tags:
+      - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              - email
+              - password
+              - password_confirmation
+              properties:
+                token:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 10
+                password_confirmation:
+                  type: string
+      security: []
+      responses:
+        '200':
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/email/verify/{id}/{hash}:
+    get:
+      operationId: verifyEmail
+      summary: Verify an email address from the signed link
+      tags:
+      - Auth
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: hash
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: expires
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: signature
+        required: true
+        schema:
+          type: string
+      security: []
+      responses:
+        '200':
+          description: Verified (JSON clients)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '302':
+          description: Redirect to the web app
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/email/verification-notification:
+    post:
+      operationId: resendVerification
+      summary: Send the verification email again
+      tags:
+      - Auth
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /auth/sessions:
+    get:
+      operationId: listSessions
+      summary: Where the user is signed in (tokens and browser sessions)
+      tags:
+      - Auth
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/sessions/{type}/{id}:
+    delete:
+      operationId: revokeSession
+      summary: Sign a device out
+      tags:
+      - Auth
+      parameters:
+      - in: path
+        name: type
+        required: true
+        schema:
+          type: string
+          enum:
+          - token
+          - browser
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Signed out
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      summary: Workspaces the user belongs to
+      tags:
+      - Workspaces
+      responses:
+        '200':
+          description: Workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      operationId: createWorkspace
+      summary: Create another workspace (the caller becomes owner)
+      tags:
+      - Workspaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 120
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /workspace:
+    get:
+      operationId: currentWorkspace
+      summary: The workspace named in X-Workspace-Id
+      tags:
+      - Workspaces
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /workspace/permissions:
+    get:
+      operationId: myPermissions
+      summary: What the caller can do in this workspace
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Access
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      custom_role_id:
+                        type:
+                        - string
+                        - 'null'
+                      permissions:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /workspace/permissions/catalog:
+    get:
+      operationId: permissionCatalog
+      summary: Every permission, grouped by module
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        module:
+                          type: string
+                        permissions:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              key:
+                                type: string
+                              description:
+                                type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /workspace/members:
+    get:
+      operationId: listMembers
+      summary: The team
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: workspace.members.view
+      description: Requires the `workspace.members.view` permission in the workspace.
+      responses:
+        '200':
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /workspace/members/{user}:
+    patch:
+      operationId: changeMemberRole
+      summary: Change a member's role
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - role
+              properties:
+                role:
+                  $ref: '#/components/schemas/RoleName'
+                custom_role_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      x-permission: workspace.members.manage
+      description: Requires the `workspace.members.manage` permission in the workspace.
+      responses:
+        '200':
+          description: Changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                      role:
+                        $ref: '#/components/schemas/RoleName'
+                      custom_role_id:
+                        type:
+                        - string
+                        - 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: removeMember
+      summary: Remove a member (anyone may remove themselves)
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: user
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workspace/roles:
+    get:
+      operationId: listRoles
+      summary: Built-in and custom roles
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: workspace.members.view
+      description: Requires the `workspace.members.view` permission in the workspace.
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createRole
+      summary: Create a custom role
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 60
+                description:
+                  type:
+                  - string
+                  - 'null'
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+              required:
+              - name
+              - permissions
+      x-permission: workspace.roles.manage
+      description: Requires the `workspace.roles.manage` permission in the workspace.
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /workspace/roles/{role}:
+    patch:
+      operationId: updateRole
+      summary: Edit a custom role
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: role
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 60
+                description:
+                  type:
+                  - string
+                  - 'null'
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+      x-permission: workspace.roles.manage
+      description: Requires the `workspace.roles.manage` permission in the workspace.
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: deleteRole
+      summary: Delete a custom role nobody has
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: role
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: workspace.roles.manage
+      description: Requires the `workspace.roles.manage` permission in the workspace.
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /whatsapp/numbers:
+    get:
+      operationId: listNumbers
+      summary: Connected WhatsApp numbers
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: whatsapp.numbers.view
+      description: Requires the `whatsapp.numbers.view` permission in the workspace.
+      responses:
+        '200':
+          description: Numbers
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WhatsAppNumber'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: connectNumber
+      summary: Connect a number with provider credentials (pilot onboarding)
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - provider
+              - external_id
+              - credentials
+              properties:
+                provider:
+                  type: string
+                  enum:
+                  - 360dialog
+                  - meta_cloud
+                  - fake
+                external_id:
+                  type: string
+                waba_id:
+                  type:
+                  - string
+                  - 'null'
+                display_phone_number:
+                  type:
+                  - string
+                  - 'null'
+                credentials:
+                  type: object
+                  properties:
+                    api_key:
+                      type: string
+                    access_token:
+                      type: string
+      x-permission: whatsapp.numbers.manage
+      description: Requires the `whatsapp.numbers.manage` permission in the workspace.
+      responses:
+        '201':
+          description: Connected
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WhatsAppNumber'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /whatsapp/numbers/{number}/templates:
+    get:
+      operationId: listTemplates
+      summary: Message templates of a number
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: number
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: whatsapp.templates.view
+      description: Requires the `whatsapp.templates.view` permission in the workspace.
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      operationId: createTemplate
+      summary: Submit a template for approval
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: number
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - language
+              - category
+              - components
+              properties:
+                name:
+                  type: string
+                  pattern: ^[a-z0-9_]{1,512}$
+                language:
+                  type: string
+                category:
+                  type: string
+                  enum:
+                  - marketing
+                  - utility
+                  - authentication
+                components:
+                  type: array
+                  items:
+                    type: object
+      x-permission: whatsapp.templates.manage
+      description: Requires the `whatsapp.templates.manage` permission in the workspace.
+      responses:
+        '201':
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      status:
+                        type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /whatsapp/numbers/{number}/templates/{name}:
+    delete:
+      operationId: deleteTemplate
+      summary: Delete a template
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: number
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      x-permission: whatsapp.templates.manage
+      description: Requires the `whatsapp.templates.manage` permission in the workspace.
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /whatsapp/numbers/{number}/messages:
+    get:
+      operationId: listMessages
+      summary: Message log of a number, newest first
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: number
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: contact
+        schema:
+          type: string
+        description: Only this contact (any phone format)
+      x-permission: whatsapp.messages.view
+      description: Requires the `whatsapp.messages.view` permission in the workspace.
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WhatsAppMessage'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: sendMessage
+      summary: Queue a message (sent with retries; status follows by webhook)
+      tags:
+      - WhatsApp
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - in: path
+        name: number
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - to
+              - type
+              properties:
+                to:
+                  type: string
+                  example: 01012345678
+                type:
+                  type: string
+                  enum:
+                  - text
+                  - template
+                  - buttons
+                  - media
+                reply_to:
+                  type: string
+                text:
+                  type: string
+                  maxLength: 4096
+                template:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    language:
+                      type: string
+                    components:
+                      type: array
+                      items:
+                        type: object
+                body:
+                  type: string
+                buttons:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    maxLength: 20
+                  maxProperties: 3
+                media:
+                  type: object
+                  properties:
+                    kind:
+                      type: string
+                      enum:
+                      - image
+                      - video
+                      - audio
+                      - document
+                      - sticker
+                    link:
+                      type: string
+                    id:
+                      type: string
+                    caption:
+                      type: string
+                    filename:
+                      type: string
+      x-permission: whatsapp.messages.send
+      description: Requires the `whatsapp.messages.send` permission in the workspace.
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WhatsAppMessage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
   /orders/{orderId}:
     get:
-      summary: Get an order
       operationId: getOrder
-      tags: [Orders]
+      summary: Get an order
+      tags:
+      - Orders
       parameters:
-        - $ref: "#/components/parameters/OrderId"
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/OrderId'
       responses:
-        "200":
+        '200':
           description: The order
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Order" }
-        "404": { $ref: "#/components/responses/NotFound" }
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      x-status: planned
   /orders/{orderId}/confirm:
     post:
-      summary: Confirm an order
       operationId: confirmOrder
-      tags: [Confirmation]
+      summary: Confirm an order
+      tags:
+      - Confirmation
       parameters:
-        - $ref: "#/components/parameters/OrderId"
-        - in: header
-          name: Idempotency-Key
-          required: true
-          schema: { type: string, maxLength: 64 }
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - $ref: '#/components/parameters/OrderId'
       responses:
-        "200":
+        '200':
           description: The confirmed order
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Order" }
-        "409": { description: The order can no longer be confirmed }
+              schema:
+                $ref: '#/components/schemas/Order'
+        '409':
+          description: The order can no longer be confirmed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-status: planned
 components:
   securitySchemes:
-    bearerAuth: { type: http, scheme: bearer }
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Mobile and API clients: token from /auth/login with device_name.'
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: trik_session
+      description: 'Web app: Sanctum session after GET /sanctum/csrf-cookie and /auth/login.'
   parameters:
+    WorkspaceId:
+      in: header
+      name: X-Workspace-Id
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The workspace to act in. The caller must be a member.
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema:
+        type: string
+        maxLength: 255
+      description: Any write may send one; retries with the same key replay the first response for 24 h.
+    IdempotencyKeyRequired:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        type: string
+        maxLength: 255
+      description: Required here. Use a new UUID per action and reuse it on retries.
+    PerPage:
+      in: query
+      name: per_page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      in: query
+      name: cursor
+      schema:
+        type: string
+      description: meta.next_cursor or meta.prev_cursor from the previous page
     OrderId:
       in: path
       name: orderId
       required: true
-      schema: { type: string }
+      schema:
+        type: string
   responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/workspace-header-missing
+            title: Bad Request
+            status: 400
+            code: workspace-header-missing
+    Unauthenticated:
+      description: Not signed in
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/unauthenticated
+            title: Unauthorized
+            status: 401
+            code: unauthenticated
+    Forbidden:
+      description: Not a member, or missing a permission
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/missing-permission
+            title: Forbidden
+            status: 403
+            code: missing-permission
+            detail: You need the whatsapp.numbers.manage permission in this workspace.
     NotFound:
       description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/not-found
+            title: Not Found
+            status: 404
+            code: not-found
+    Conflict:
+      description: Conflicts with the current state (e.g. last owner, idempotency key in use)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/last-owner
+            title: Conflict
+            status: 409
+            code: last-owner
+    ValidationFailed:
+      description: Invalid input
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+    TooManyRequests:
+      description: Rate limited or locked out
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://trik.chat/problems/too-many-attempts
+            title: Too Many Requests
+            status: 429
+            code: too-many-attempts
   schemas:
-    Money:
+    Problem:
       type: object
-      required: [amount, currency]
+      description: RFC 9457 problem details. Switch on `code`.
+      required:
+      - type
+      - title
+      - status
+      - code
       properties:
-        amount: { type: integer, description: Minor units (piastres, halalas) }
-        currency: { type: string, example: EGP }
-    Order:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+        instance:
+          type: string
+        request_id:
+          type: string
+    ValidationProblem:
+      allOf:
+      - $ref: '#/components/schemas/Problem'
+      - type: object
+        properties:
+          errors:
+            type: object
+            additionalProperties:
+              type: array
+              items:
+                type: string
+    CursorMeta:
       type: object
-      required: [id, number, status, total]
       properties:
-        id: { type: string }
-        number: { type: string, example: "1048" }
+        per_page:
+          type: integer
+        next_cursor:
+          type:
+          - string
+          - 'null'
+        prev_cursor:
+          type:
+          - string
+          - 'null'
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        email_verified:
+          type: boolean
+    RoleName:
+      type: string
+      enum:
+      - owner
+      - admin
+      - agent
+      - custom
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        role:
+          $ref: '#/components/schemas/RoleName'
+    Session:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - token
+          - browser
+        id:
+          type: string
+        name:
+          type: string
+        ip_address:
+          type:
+          - string
+          - 'null'
+        last_active_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        current:
+          type: boolean
+    Member:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: '#/components/schemas/RoleName'
+        custom_role:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        joined_at:
+          type: string
+          format: date-time
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+          - string
+          - 'null'
+        permissions:
+          type: array
+          items:
+            type: string
+        built_in:
+          type: boolean
+    WhatsAppNumber:
+      type: object
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+        external_id:
+          type: string
+        waba_id:
+          type:
+          - string
+          - 'null'
+        display_phone_number:
+          type:
+          - string
+          - 'null'
+        verified_name:
+          type:
+          - string
+          - 'null'
         status:
           type: string
-          enum: [new, confirming, awaiting_deposit, confirmed, ready_to_ship, shipped, delivered, returned, cancelled]
-        total: { $ref: "#/components/schemas/Money" }
-        cod_amount: { $ref: "#/components/schemas/Money" }
-        risk_score: { type: integer, minimum: 0, maximum: 100 }
-        confirmed_at: { type: string, format: date-time, nullable: true }
+        capabilities:
+          type: array
+          items:
+            type: string
+        webhook_url:
+          type: string
+    Template:
+      type: object
+      properties:
+        id:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        language:
+          type: string
+        status:
+          type: string
+        category:
+          type: string
+        components:
+          type: array
+          items:
+            type: object
+    Money:
+      type: object
+      required:
+      - amount
+      - currency
+      properties:
+        amount:
+          type: integer
+          description: Minor units (piastres, halalas)
+        currency:
+          type: string
+          example: EGP
+    Order:
+      type: object
+      required:
+      - id
+      - number
+      - status
+      - total
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+          example: '1048'
+        status:
+          type: string
+          enum:
+          - new
+          - confirming
+          - awaiting_deposit
+          - confirmed
+          - ready_to_ship
+          - shipped
+          - delivered
+          - returned
+          - cancelled
+        total:
+          $ref: '#/components/schemas/Money'
+        cod_amount:
+          $ref: '#/components/schemas/Money'
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        confirmed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    WhatsAppMessage:
+      title: WhatsAppMessage
+      type: object
+      properties:
+        id:
+          type: string
+        number_id:
+          type: string
+        direction:
+          type: string
+          enum:
+          - in
+          - out
+        provider_message_id:
+          type:
+          - string
+          - 'null'
+        contact_phone:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - sent
+          - delivered
+          - read
+          - failed
+          - received
+        error:
+          type:
+          - object
+          - 'null'
+        sent_at:
+          type:
+          - string
+          - 'null'
+        delivered_at:
+          type:
+          - string
+          - 'null'
+        read_at:
+          type:
+          - string
+          - 'null'

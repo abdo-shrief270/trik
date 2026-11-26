@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\Http\Problem;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\WorkspaceMembership;
 use Closure;
@@ -31,11 +32,11 @@ final class ResolveWorkspace
         $user = $request->user();
 
         if (! Str::isUuid($workspaceId)) {
-            return response()->json(['message' => 'Send the workspace id in the '.self::HEADER.' header.'], 400);
+            throw Problem::badRequest('workspace-header-missing', 'Send the workspace id in the '.self::HEADER.' header.');
         }
 
         if ($user === null || ! $this->membership->isMember($workspaceId, (string) $user->getAuthIdentifier())) {
-            return response()->json(['message' => 'You are not a member of this workspace.'], 403);
+            throw Problem::forbidden('not-a-member', 'You are not a member of this workspace.');
         }
 
         return $this->context->run($workspaceId, fn (): Response => $next($request));

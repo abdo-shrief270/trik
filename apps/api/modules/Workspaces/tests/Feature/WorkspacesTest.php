@@ -14,11 +14,11 @@ beforeEach(function (): void {
 it('creates more workspaces and lists only the user\'s own', function (): void {
     app(CreateWorkspace::class)->handle('Someone else', User::factory()->create()->id);
 
-    $this->withToken($this->token)->postJson('/api/v1/workspaces', ['name' => 'Second Brand'])
+    $this->withToken($this->token)->postJson('/v1/workspaces', ['name' => 'Second Brand'])
         ->assertCreated()
         ->assertJsonPath('data.role', 'owner');
 
-    $this->withToken($this->token)->getJson('/api/v1/workspaces')
+    $this->withToken($this->token)->getJson('/v1/workspaces')
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.name', 'Second Brand');
@@ -29,7 +29,7 @@ it('activates a workspace from the header for members', function (): void {
 
     $this->withToken($this->token)
         ->withHeader(ResolveWorkspace::HEADER, $workspace->id)
-        ->getJson('/api/v1/workspace')
+        ->getJson('/v1/workspace')
         ->assertOk()
         ->assertJsonPath('data.id', $workspace->id);
 });
@@ -39,12 +39,12 @@ it('refuses a workspace the user is not a member of', function (): void {
 
     $this->withToken($this->token)
         ->withHeader(ResolveWorkspace::HEADER, $foreign->id)
-        ->getJson('/api/v1/workspace')
+        ->getJson('/v1/workspace')
         ->assertForbidden();
 });
 
 it('requires the workspace header', function (): void {
-    $this->withToken($this->token)->getJson('/api/v1/workspace')->assertStatus(400);
+    $this->withToken($this->token)->getJson('/v1/workspace')->assertStatus(400);
 });
 
 it('gives each workspace a unique slug', function (): void {

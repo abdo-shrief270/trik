@@ -69,7 +69,7 @@ hits it. At the Scale stage the Go dispatcher (#97) takes over sending from the 
 
 Workers must listen on `WHATSAPP_QUEUE` (default `default`).
 
-## HTTP API (`/api/v1`, signed in, `X-Workspace-Id` required)
+## HTTP API (`/v1`, signed in, `X-Workspace-Id` required)
 
 | Method | Path | |
 |---|---|---|

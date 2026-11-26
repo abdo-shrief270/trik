@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace Modules\Identity;
 
+use App\Support\Identity\UserLookup;
 use App\Support\Modules\ModuleServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
+use Modules\Identity\Infrastructure\EloquentUserLookup;
 use Modules\Identity\Infrastructure\Models\User;
 
 final class IdentityServiceProvider extends ModuleServiceProvider
 {
+    protected function registerModule(): void
+    {
+        $this->app->bind(UserLookup::class, EloquentUserLookup::class);
+    }
+
     protected function bootModule(): void
     {
         $frontend = rtrim((string) config('app.frontend_url'), '/');

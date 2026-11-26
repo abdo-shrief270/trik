@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\Problem;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ final class WebhookController
         $route = $this->router->byNumberId($number);
 
         if ($route === null || $route['provider']->value !== $provider || $route['provider'] === Provider::MetaCloud) {
-            return response()->json(['message' => 'Unknown number.'], 404);
+            throw Problem::notFound('unknown-number', 'Unknown number.');
         }
 
         return $this->context->run($route['workspace_id'], function () use ($request, $route, $number): JsonResponse {
@@ -41,7 +42,7 @@ final class WebhookController
             $adapter = $this->providers->webhooks($route['provider']);
 
             if (! $adapter->verify($this->headers($request), $request->getContent(), $record->webhookSecret())) {
-                return response()->json(['message' => 'Invalid signature.'], 401);
+                throw Problem::make(401, 'invalid-signature', 'Invalid signature.');
             }
 
             $this->accept->handle($record->id, $route['provider'], $this->payload($request));
@@ -67,7 +68,7 @@ final class WebhookController
         $adapter = $this->providers->webhooks(Provider::MetaCloud);
 
         if (! $adapter->verify($this->headers($request), $request->getContent(), null)) {
-            return response()->json(['message' => 'Invalid signature.'], 401);
+            throw Problem::make(401, 'invalid-signature', 'Invalid signature.');
         }
 
         $payload = $this->payload($request);
