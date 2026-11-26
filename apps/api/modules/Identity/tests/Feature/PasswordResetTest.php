@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Modules\Identity\Infrastructure\Models\User;
+use Modules\Identity\Infrastructure\Notifications\QueuedResetPassword;
 
 it('emails a reset link to the web app without revealing whether the account exists', function (): void {
     Notification::fake();
@@ -14,7 +14,7 @@ it('emails a reset link to the web app without revealing whether the account exi
     $this->postJson('/v1/auth/forgot-password', ['email' => 'mona@example.com'])->assertOk();
     $this->postJson('/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertOk();
 
-    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use ($user): bool {
+    Notification::assertSentTo($user, QueuedResetPassword::class, function (QueuedResetPassword $n) use ($user): bool {
         $url = $n->toMail($user)->actionUrl;
 
         return str_starts_with($url, 'http://localhost:3000/reset-password?token=');
@@ -29,7 +29,7 @@ it('resets the password and signs out every device', function (): void {
     $this->postJson('/v1/auth/forgot-password', ['email' => 'mona@example.com']);
 
     $token = null;
-    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use (&$token): bool {
+    Notification::assertSentTo($user, QueuedResetPassword::class, function (QueuedResetPassword $n) use (&$token): bool {
         $token = $n->token;
 
         return true;

@@ -82,6 +82,7 @@ jobs:
           CACHE_STORE: redis
           QUEUE_CONNECTION: redis
           OCTANE_SERVER: swoole
+          MAIL_MAILER: log
           PGPASSWORD: trik
         run: |
           psql -h 127.0.0.1 -U trik -d trik_test -c "create database trik_probe"
@@ -89,4 +90,4 @@ jobs:
           php artisan octane:start --server=swoole --workers=2 --port=8099 > /tmp/octane.log 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8099/healthz > /dev/null && break; sleep 1; done
           pip install --quiet requests
-          python3 ../../tests/security/api_probe.py http://127.0.0.1:8099 --db "host=127.0.0.1 port=5432 user=trik password=trik dbname=trik_probe" || { tail -50 /tmp/octane.log; exit 1; }
+          python3 ../../tests/security/api_probe.py http://127.0.0.1:8099 --db "host=127.0.0.1 port=5432 user=trik password=trik dbname=trik_probe" || { tail -50 /tmp/octane.log; grep -h -A20 '\.ERROR' storage/logs/*.log | head -80; exit 1; }

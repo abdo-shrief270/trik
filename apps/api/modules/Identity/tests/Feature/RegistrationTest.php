@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Modules\Identity\Infrastructure\Models\User;
+use Modules\Identity\Infrastructure\Notifications\QueuedVerifyEmail;
 
 function signUp(array $overrides = []): TestResponse
 {
@@ -33,7 +35,7 @@ it('creates the user and their first workspace, and returns a token for mobile',
     expect($response->json('token'))->toBeString();
 
     $user = User::query()->where('email', 'mona@example.com')->firstOrFail();
-    Notification::assertSentTo($user, VerifyEmail::class);
+    Notification::assertSentTo($user, QueuedVerifyEmail::class);
 
     $this->withToken($response->json('token'))
         ->getJson('/v1/auth/me')
@@ -59,4 +61,13 @@ it('rejects a duplicate email and weak passwords', function (): void {
     signUp(['device_name' => 'x'])->assertJsonValidationErrors('email');
     signUp(['email' => 'new@example.com', 'password' => 'short', 'password_confirmation' => 'short', 'device_name' => 'x'])
         ->assertJsonValidationErrors('password');
+});
+
+it('signs people up even when the mail server is down (the email goes through the queue)', function (): void {
+    Queue::fake();
+    config(['mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
+
+    signUp(['email' => 'nomail@example.com', 'device_name' => 'Pixel 9'])->assertCreated();
+
+    Queue::assertPushed(SendQueuedNotifications::class, fn (SendQueuedNotifications $job): bool => $job->notification instanceof QueuedVerifyEmail);
 });
