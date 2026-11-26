@@ -6,6 +6,7 @@ namespace Modules\Workspaces\Infrastructure\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use Modules\Workspaces\Infrastructure\Models\Organization;
 use Modules\Workspaces\Infrastructure\Models\Workspace;
 
 /** @extends Factory<Workspace> */
@@ -18,6 +19,10 @@ final class WorkspaceFactory extends Factory
     {
         $name = fake()->company();
 
-        return ['name' => $name, 'slug' => Str::slug($name).'-'.Str::lower(Str::random(5))];
+        return [
+            'name' => $name,
+            'slug' => Str::slug($name).'-'.Str::lower(Str::random(5)),
+            'organization_id' => fn (): string => Organization::query()->create(['name' => $name])->id,
+        ];
     }
 }

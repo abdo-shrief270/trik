@@ -96,7 +96,7 @@ This builds on the same union-of-grants gate. Planned for the Scale phase (#323�
 
 | Phase | Milestone | Scope |
 |---|---|---|
-| **0 · Foundation** | MVP · Pilot (now, small) | `organizations` + `organizations_members`; `workspaces.organization_id` required; sign-up creates both; select/write RLS policy split; `/me` grouped by organization; switching between workspaces you belong to |
+| **0 · Foundation** ✅ #366 | MVP · Pilot | `organizations` + `organizations_members`; `workspaces.organization_id` required; sign-up creates both; select/write RLS policy split; `/me` grouped by organization; switching between workspaces you belong to |
 | **1 · Teams across brands** | M1 (with team inbox) | Organization roles and permission catalogue; organization people list; owners/admins add people to workspaces (audited); create workspaces in an organization; per-workspace badges (unread, assigned to me) in `/me` and real time; switcher in web and mobile; notifications that switch workspace |
 | **2 · Billing and group features** | M3 → M7 | Per-workspace plans with a consolidated invoices view at organization level (M3); organization-context reports for the workspaces you belong to; shared asset library; organization audit log; workspace transfer between organizations (M7, #290) |
 | **3 · Partners** | M8 (#323–#326) | Partner links, delegated access, partner console, commission; SSO and IP rules at organization level (#319) |

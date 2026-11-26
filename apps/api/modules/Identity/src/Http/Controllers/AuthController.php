@@ -13,6 +13,7 @@ use Modules\Identity\Http\Controllers\Concerns\StartsSessions;
 use Modules\Identity\Http\Requests\LoginRequest;
 use Modules\Identity\Http\Requests\RegisterRequest;
 use Modules\Identity\Infrastructure\Models\User;
+use Modules\Workspaces\Application\OrganizationData;
 use Modules\Workspaces\Application\WorkspaceData;
 use Modules\Workspaces\Application\WorkspaceDirectory;
 
@@ -66,6 +67,7 @@ final class AuthController
         return response()->json([
             'user' => $this->userPayload($user),
             'workspaces' => array_map(fn (WorkspaceData $w): array => $w->toArray(), $directory->forUser($user->id)),
+            'organizations' => array_map(fn (OrganizationData $o): array => $o->toArray(), $directory->organizationsFor($user->id)),
         ]);
     }
 

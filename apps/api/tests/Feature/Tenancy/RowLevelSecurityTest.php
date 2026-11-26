@@ -34,8 +34,8 @@ beforeEach(function (): void {
     });
     RowLevelSecurity::enable('tenancy_probes', connection: 'owner');
 
-    $this->a = Workspace::factory()->create(['owner_id' => userId()]);
-    $this->b = Workspace::factory()->create(['owner_id' => userId()]);
+    $this->a = Workspace::factory()->create();
+    $this->b = Workspace::factory()->create();
     $this->ctx = app(TenantContext::class);
 });
 

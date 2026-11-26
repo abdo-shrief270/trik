@@ -20,7 +20,7 @@ function userId(): string
 function ownerWithWorkspace(string $name = 'Test Store'): array
 {
     $user = User::factory()->create();
-    $workspace = app(CreateWorkspace::class)->handle($name, $user->id);
+    $workspace = app(CreateWorkspace::class)->forUser($name, $user->id);
 
     return [
         'user' => $user,

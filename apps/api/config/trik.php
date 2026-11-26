@@ -13,6 +13,6 @@ return [
         'webhooks' => (int) env('MAX_BODY_BYTES_WEBHOOKS', 1024 * 1024),
     ],
 
-    // A user can own at most this many workspaces (stops sign-up abuse; raise per customer).
-    'max_owned_workspaces' => (int) env('MAX_OWNED_WORKSPACES', 10),
+    // An organization holds at most this many workspaces (stops abuse; raise per customer).
+    'max_workspaces_per_organization' => (int) env('MAX_WORKSPACES_PER_ORGANIZATION', 10),
 ];

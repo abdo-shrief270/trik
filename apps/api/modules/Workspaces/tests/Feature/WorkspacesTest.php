@@ -12,7 +12,7 @@ beforeEach(function (): void {
 });
 
 it('creates more workspaces and lists only the user\'s own', function (): void {
-    app(CreateWorkspace::class)->handle('Someone else', User::factory()->create()->id);
+    app(CreateWorkspace::class)->forUser('Someone else', User::factory()->create()->id);
 
     $this->withToken($this->token)->postJson('/v1/workspaces', ['name' => 'Second Brand'])
         ->assertCreated()
@@ -25,7 +25,7 @@ it('creates more workspaces and lists only the user\'s own', function (): void {
 });
 
 it('activates a workspace from the header for members', function (): void {
-    $workspace = app(CreateWorkspace::class)->handle('Mine', $this->user->id);
+    $workspace = app(CreateWorkspace::class)->forUser('Mine', $this->user->id);
 
     $this->withToken($this->token)
         ->withHeader(ResolveWorkspace::HEADER, $workspace->id)
@@ -35,7 +35,7 @@ it('activates a workspace from the header for members', function (): void {
 });
 
 it('refuses a workspace the user is not a member of', function (): void {
-    $foreign = app(CreateWorkspace::class)->handle('Not mine', User::factory()->create()->id);
+    $foreign = app(CreateWorkspace::class)->forUser('Not mine', User::factory()->create()->id);
 
     $this->withToken($this->token)
         ->withHeader(ResolveWorkspace::HEADER, $foreign->id)
@@ -48,8 +48,8 @@ it('requires the workspace header', function (): void {
 });
 
 it('gives each workspace a unique slug', function (): void {
-    $a = app(CreateWorkspace::class)->handle('Nile Shop', $this->user->id);
-    $b = app(CreateWorkspace::class)->handle('Nile Shop', $this->user->id);
+    $a = app(CreateWorkspace::class)->forUser('Nile Shop', $this->user->id);
+    $b = app(CreateWorkspace::class)->forUser('Nile Shop', $this->user->id);
 
     expect($a->slug)->toBe('nile-shop')->and($b->slug)->not->toBe('nile-shop')->toStartWith('nile-shop-');
 });
