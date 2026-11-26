@@ -9,7 +9,7 @@ use Modules\Identity\Infrastructure\Models\User;
 
 function signUp(array $overrides = []): TestResponse
 {
-    return test()->postJson('/api/v1/auth/register', [
+    return test()->postJson('/v1/auth/register', [
         'name' => 'Mona Adel',
         'email' => 'Mona@Example.com',
         'password' => 'secret-pass-123',
@@ -36,7 +36,7 @@ it('creates the user and their first workspace, and returns a token for mobile',
     Notification::assertSentTo($user, VerifyEmail::class);
 
     $this->withToken($response->json('token'))
-        ->getJson('/api/v1/auth/me')
+        ->getJson('/v1/auth/me')
         ->assertOk()
         ->assertJsonCount(1, 'workspaces');
 });

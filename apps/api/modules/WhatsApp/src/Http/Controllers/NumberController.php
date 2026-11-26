@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\Problem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,8 +38,9 @@ final class NumberController
     {
         $data = $request->validate([
             'provider' => ['required', Rule::in(array_map(fn (Provider $p) => $p->value, $providers->available()))],
-            'external_id' => ['required', 'string', 'max:64'],
-            'waba_id' => [Rule::requiredIf($request->input('provider') === Provider::MetaCloud->value), 'nullable', 'string', 'max:64'],
+            // ids end up in provider URLs: Meta ids are numeric, BSP channel ids are slugs
+            'external_id' => ['required', 'string', $request->input('provider') === Provider::MetaCloud->value ? 'regex:/^\d{5,25}$/' : 'regex:/^[A-Za-z0-9_-]{1,64}$/'],
+            'waba_id' => [Rule::requiredIf($request->input('provider') === Provider::MetaCloud->value), 'nullable', 'string', 'regex:/^\d{5,25}$/'],
             'display_phone_number' => ['nullable', 'string', 'max:32'],
             'credentials' => ['required', 'array'],
             'credentials.api_key' => [Rule::requiredIf($request->input('provider') === Provider::Dialog360->value), 'string'],
@@ -48,7 +50,7 @@ final class NumberController
         $provider = Provider::from($data['provider']);
 
         if (WhatsAppNumber::query()->where('provider', $provider)->where('external_id', $data['external_id'])->exists()) {
-            return response()->json(['message' => 'This number is already connected.'], 409);
+            throw Problem::conflict('number-already-connected', 'This number is already connected.');
         }
 
         try {
@@ -60,7 +62,7 @@ final class NumberController
                 $data['display_phone_number'] ?? null,
             );
         } catch (ProviderRequestFailed $e) {
-            return response()->json(['message' => 'The provider rejected the connection: '.$e->getMessage(), 'provider_error' => $e->toArray()], 422);
+            throw Problem::unprocessable('provider-rejected', 'The provider rejected the connection: '.$e->getMessage(), ['provider_error' => $e->toArray()]);
         }
 
         return response()->json(['data' => [...$number->toApi(), 'webhook_url' => WebhookUrls::forNumber($number->id, $provider)]], 201);

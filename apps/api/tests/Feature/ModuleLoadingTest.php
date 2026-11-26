@@ -10,7 +10,7 @@ it('registers module providers found on disk', function (): void {
         ->and(app()->getProviders(WorkspacesServiceProvider::class))->not->toBeEmpty();
 });
 
-it('mounts module routes under /api/v1', function (): void {
-    expect(route('identity.login', absolute: false))->toBe('/api/v1/auth/login')
-        ->and(route('workspaces.index', absolute: false))->toBe('/api/v1/workspaces');
+it('mounts module routes under /v1', function (): void {
+    expect(route('identity.login', absolute: false))->toBe('/v1/auth/login')
+        ->and(route('workspaces.index', absolute: false))->toBe('/v1/workspaces');
 });

@@ -43,7 +43,8 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 | Area | Requirement |
 |---|---|
 | Latency | Webhook acknowledged < 50 ms p99; message visible in inbox < 1 s p95; API p95 < 300 ms |
-| Throughput | 2,000 webhooks/s per cell at launch; horizontal scaling by cells |
+| Throughput | Pilot: a few hundred msg/s on one server. Target: **30,000 sends/s peak** (≈ 100k webhook events/s) on the ADR 0010 scale path, staged by measured load |
+| Cost | Hostinger first (≈ $460/month at the 30k/s peak), AWS when an ADR 0011 trigger is met |
 | Availability | 99.9 % monthly at launch; 99.95 % on higher plans later |
 | Data | RPO ≤ 5 min, RTO ≤ 1 h; PITR backups; restore drill every quarter |
 | Security | Tenant isolation by RLS; encryption in transit and at rest; 2FA; audit log; annual pentest |
@@ -51,6 +52,15 @@ Target dates assume a team of 2 backend, 1–2 web, 1 mobile and 1 designer/QA w
 | Meta | Tech Provider; sellers billed by Meta directly; opt-in enforced; quality rating protected |
 | Localisation | Arabic (RTL) default, English; Egyptian and Gulf formats |
 | Quality | CI green; tests for every feature; architecture tests for module boundaries; feature flags |
+
+## Scale path and hosting (ADR 0010, ADR 0011)
+
+| Stage | Trigger | Adds | Issues |
+|---|---|---|---|
+| Pilot | — | Laravel + Redis on one Hostinger KVM 8 (EU), backups to S3 | #346, #350, #352, #356 |
+| Launch | > ~1–2k events/s or queue lag > 5 s | Go webhook-intake + Redpanda, servers from Ansible | #95, #29, #351, #353 |
+| Scale | > ~10k events/s or first 30k/s campaign | Go message-writer + dispatcher, ClickHouse status facts | #96, #97, #354 |
+| AWS | an ADR 0011 trigger | RDS, MSK, ECS, service by service | #355 |
 
 ## Labels
 

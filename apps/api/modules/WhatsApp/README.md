@@ -37,17 +37,39 @@ add it to the `providers` dataset and its fake API to `tests/Fixtures/ProviderFi
 | `MessageReceived` (once per message; redeliveries dropped) | — |
 | `MessageStatusChanged` (sent → delivered → read, or failed; never backwards) | — |
 
+## Storage (shaped for [ADR 0010](../../../../docs/architecture/adr/0010-scale-path-30k-messages-per-second.md))
+
+| Table | What | Partitioned |
+|---|---|---|
+| `whatsapp_numbers` | connected numbers, encrypted credentials | no |
+| `whatsapp_webhook_events` | raw deliveries; dropped after `WHATSAPP_WEBHOOK_RETENTION_MONTHS` | monthly |
+| `whatsapp_messages` | conversation messages (inbox), both directions | monthly |
+| `whatsapp_broadcast_sends` | campaign sends, one row per contact; kept apart from conversations | monthly |
+| `whatsapp_inbound_keys` | de-duplication of inbound provider ids (pruned after 30 days) | no |
+
+`php artisan whatsapp:maintain` (scheduled daily) creates partitions three months ahead, drops expired ones,
+prunes keys and complains if rows ever land in a `_default` partition.
+
 ## How a webhook flows
 
 1. The controller finds the workspace with a narrow `SECURITY DEFINER` function (no cross-workspace reads),
    activates it, verifies the signature/secret, stores the raw payload and answers `200`.
-2. `ProcessWebhookEvent` (queue) parses it, inserts inbound messages (unique per provider id),
-   applies statuses, marks the delivery processed and publishes events.
-3. If processing fails, the raw delivery stays unprocessed and the job retries with backoff.
+2. `ProcessWebhookEvents` (one per workspace at a time) drains pending deliveries **500 at a time** with
+   `SKIP LOCKED`. A batch costs a fixed number of queries whatever its size: one de-duplication insert,
+   one message insert, one `UPDATE … FROM (VALUES …)` per table for statuses.
+3. A delivery that fails is retried on its own, the rest go through; after 5 attempts it is parked.
+4. Events: `MessageReceived` / `MessageStatusChanged` per conversation message,
+   `BroadcastProgressed` per broadcast per batch (never per campaign message).
+
+## Broadcasts
+
+`SendBroadcast` inserts the sends in bulk and queues chunk jobs of 200. Each job keeps to the number's
+messages-per-second limit (`WHATSAPP_DEFAULT_MPS`, Meta's default 80) and continues a second later when it
+hits it. At the Scale stage the Go dispatcher (#97) takes over sending from the same table.
 
 Workers must listen on `WHATSAPP_QUEUE` (default `default`).
 
-## HTTP API (`/api/v1`, signed in, `X-Workspace-Id` required)
+## HTTP API (`/v1`, signed in, `X-Workspace-Id` required)
 
 | Method | Path | |
 |---|---|---|

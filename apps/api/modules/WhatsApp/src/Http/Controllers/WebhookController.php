@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Http\Controllers;
 
+use App\Support\Http\Problem;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\RateLimiter;
 use Modules\WhatsApp\Application\AcceptWebhook;
 use Modules\WhatsApp\Application\ProviderRegistry;
 use Modules\WhatsApp\Domain\Provider;
@@ -21,6 +23,8 @@ use Modules\WhatsApp\Infrastructure\WebhookRouter;
  */
 final class WebhookController
 {
+    public const FAILURES_PER_MINUTE = 60;
+
     public function __construct(
         private readonly WebhookRouter $router,
         private readonly ProviderRegistry $providers,
@@ -30,18 +34,27 @@ final class WebhookController
 
     public function perNumber(Request $request, string $provider, string $number): JsonResponse
     {
+        $this->refuseIfFlooding($request);
         $route = $this->router->byNumberId($number);
 
         if ($route === null || $route['provider']->value !== $provider || $route['provider'] === Provider::MetaCloud) {
-            return response()->json(['message' => 'Unknown number.'], 404);
+            $this->failed($request);
+
+            throw Problem::notFound('unknown-number', 'Unknown number.');
         }
+
+        $this->refuseIfFlooding($request, 'number:'.$number);
 
         return $this->context->run($route['workspace_id'], function () use ($request, $route, $number): JsonResponse {
             $record = WhatsAppNumber::query()->findOrFail($number);
             $adapter = $this->providers->webhooks($route['provider']);
 
             if (! $adapter->verify($this->headers($request), $request->getContent(), $record->webhookSecret())) {
-                return response()->json(['message' => 'Invalid signature.'], 401);
+                // a known number with a wrong secret counts against that number only, never the
+                // provider's shared IP (one misconfigured number must not block everyone's webhooks)
+                $this->failed($request, 'number:'.$record->id);
+
+                throw Problem::make(401, 'invalid-signature', 'Invalid signature.');
             }
 
             $this->accept->handle($record->id, $route['provider'], $this->payload($request));
@@ -64,10 +77,13 @@ final class WebhookController
 
     public function meta(Request $request): JsonResponse
     {
+        $this->refuseIfFlooding($request);
         $adapter = $this->providers->webhooks(Provider::MetaCloud);
 
         if (! $adapter->verify($this->headers($request), $request->getContent(), null)) {
-            return response()->json(['message' => 'Invalid signature.'], 401);
+            $this->failed($request);
+
+            throw Problem::make(401, 'invalid-signature', 'Invalid signature.');
         }
 
         $payload = $this->payload($request);
@@ -82,6 +98,33 @@ final class WebhookController
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Only invalid deliveries are counted, never valid ones (providers send thousands per second):
+     * more than FAILURES_PER_MINUTE from one IP (unknown numbers, unsigned Meta calls), or for one
+     * number (wrong secret), and that IP or number is refused for a minute.
+     */
+    private function refuseIfFlooding(Request $request, ?string $scope = null): void
+    {
+        $key = $this->failureKey($request, $scope);
+
+        if (RateLimiter::tooManyAttempts($key, self::FAILURES_PER_MINUTE)) {
+            throw new Problem(429, 'rate-limited', 'Too Many Requests', 'Too many invalid webhook deliveries.', [], [
+                'Retry-After' => (string) RateLimiter::availableIn($key),
+            ]);
+        }
+    }
+
+    private function failed(Request $request, ?string $scope = null): void
+    {
+        RateLimiter::hit($this->failureKey($request, $scope), 60);
+    }
+
+    /** Unknown numbers and unsigned Meta calls count per IP; a known number's bad secret counts per number. */
+    private function failureKey(Request $request, ?string $scope): string
+    {
+        return 'webhook-failures:'.($scope ?? 'ip:'.$request->ip());
     }
 
     /**

@@ -10,7 +10,7 @@ it('lists where the user is signed in and marks the current device', function ()
     $current = $user->createToken('iPhone')->plainTextToken;
 
     $this->withToken($current)
-        ->getJson('/api/v1/auth/sessions')
+        ->getJson('/v1/auth/sessions')
         ->assertOk()
         ->assertJsonCount(2, 'data')
         ->assertJsonFragment(['name' => 'iPhone', 'current' => true])
@@ -22,7 +22,7 @@ it('signs out another device', function (): void {
     $other = $user->createToken('Pixel 9')->accessToken;
     $current = $user->createToken('iPhone')->plainTextToken;
 
-    $this->withToken($current)->deleteJson("/api/v1/auth/sessions/token/{$other->getKey()}")->assertNoContent();
+    $this->withToken($current)->deleteJson("/v1/auth/sessions/token/{$other->getKey()}")->assertNoContent();
 
     expect($user->tokens()->pluck('name')->all())->toBe(['iPhone']);
 });
@@ -31,5 +31,5 @@ it('cannot sign out someone else\'s device', function (): void {
     $victim = User::factory()->create()->createToken('theirs')->accessToken;
     $token = User::factory()->create()->createToken('mine')->plainTextToken;
 
-    $this->withToken($token)->deleteJson("/api/v1/auth/sessions/token/{$victim->getKey()}")->assertNotFound();
+    $this->withToken($token)->deleteJson("/v1/auth/sessions/token/{$victim->getKey()}")->assertNotFound();
 });

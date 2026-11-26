@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Cache;
 use Modules\WhatsApp\Application\Events\MessageStatusChanged;
 use Modules\WhatsApp\Application\Exceptions\ProviderRequestFailed;
 use Modules\WhatsApp\Application\ProviderRegistry;
@@ -44,6 +45,24 @@ final class SendOutgoingMessage implements ShouldQueue
     }
 
     public function handle(ProviderRegistry $providers, EventPublisher $events): void
+    {
+        // Two copies of this job must never send at the same time (redelivery after a timeout).
+        $lock = Cache::lock('whatsapp-send:'.$this->messageId, 120);
+
+        if (! $lock->get()) {
+            $this->release(30);
+
+            return;
+        }
+
+        try {
+            $this->send($providers, $events);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function send(ProviderRegistry $providers, EventPublisher $events): void
     {
         $row = Message::query()->find($this->messageId);
 

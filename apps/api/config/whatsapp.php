@@ -18,6 +18,14 @@ return [
 
     'queue' => env('WHATSAPP_QUEUE', 'default'),
 
+    // Meta's default per-number throughput is 80 messages/s (up to 1,000 after an upgrade).
+    'default_messages_per_second' => (int) env('WHATSAPP_DEFAULT_MPS', 80),
+
+    'retention' => [
+        'webhook_events_months' => (int) env('WHATSAPP_WEBHOOK_RETENTION_MONTHS', 2),
+        'inbound_keys_days' => (int) env('WHATSAPP_INBOUND_KEYS_DAYS', 30),
+    ],
+
     // One adapter per provider. The fake one is refused in production.
     'adapters' => [
         '360dialog' => ['provider' => Dialog360Provider::class, 'webhook' => Dialog360Webhook::class],

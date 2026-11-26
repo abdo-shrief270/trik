@@ -11,8 +11,8 @@ it('emails a reset link to the web app without revealing whether the account exi
     Notification::fake();
     $user = User::factory()->create(['email' => 'mona@example.com']);
 
-    $this->postJson('/api/v1/auth/forgot-password', ['email' => 'mona@example.com'])->assertOk();
-    $this->postJson('/api/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertOk();
+    $this->postJson('/v1/auth/forgot-password', ['email' => 'mona@example.com'])->assertOk();
+    $this->postJson('/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertOk();
 
     Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use ($user): bool {
         $url = $n->toMail($user)->actionUrl;
@@ -26,7 +26,7 @@ it('resets the password and signs out every device', function (): void {
     $user = User::factory()->create(['email' => 'mona@example.com']);
     $user->createToken('old phone');
 
-    $this->postJson('/api/v1/auth/forgot-password', ['email' => 'mona@example.com']);
+    $this->postJson('/v1/auth/forgot-password', ['email' => 'mona@example.com']);
 
     $token = null;
     Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use (&$token): bool {
@@ -35,7 +35,7 @@ it('resets the password and signs out every device', function (): void {
         return true;
     });
 
-    $this->postJson('/api/v1/auth/reset-password', [
+    $this->postJson('/v1/auth/reset-password', [
         'token' => $token,
         'email' => 'mona@example.com',
         'password' => 'brand-new-pass-1',
@@ -49,7 +49,7 @@ it('resets the password and signs out every device', function (): void {
 it('rejects an invalid reset token', function (): void {
     User::factory()->create(['email' => 'mona@example.com']);
 
-    $this->postJson('/api/v1/auth/reset-password', [
+    $this->postJson('/v1/auth/reset-password', [
         'token' => 'bogus', 'email' => 'mona@example.com',
         'password' => 'brand-new-pass-1', 'password_confirmation' => 'brand-new-pass-1',
     ])->assertJsonValidationErrors('email');

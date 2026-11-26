@@ -7,6 +7,7 @@ namespace Modules\Identity\Http\Controllers;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -42,7 +43,8 @@ final class PasswordResetController
             ],
             function (User $user, string $password): void {
                 $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
-                $user->tokens()->delete(); // sign out every device
+                $user->tokens()->delete(); // sign out every device…
+                DB::table((string) config('session.table', 'sessions'))->where('user_id', $user->id)->delete(); // …and every browser
                 event(new PasswordReset($user));
             },
         );

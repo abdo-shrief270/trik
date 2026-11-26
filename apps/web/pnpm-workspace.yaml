@@ -5,3 +5,5 @@ minimumReleaseAgeExclude:
   - "@vitest/mocker@5.1.2"
   - "@vitest/spy@5.1.2"
   - vitest@5.1.2
+overrides:
+  "minimatch@>=7 <11.0.1": "^11.0.1"

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Modules;
 
+use App\Support\Authorization\PermissionRegistry;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -14,7 +15,7 @@ use Illuminate\Support\ServiceProvider;
  * By convention a module lives in modules/{Name} and its provider is
  * Modules\{Name}\{Name}ServiceProvider. This base class loads by convention:
  *  - migrations from database/migrations
- *  - src/Http/routes.php under /api/v1 with the "api" middleware group
+ *  - src/Http/routes.php under /v1 with the "api" middleware group
  *  - src/Http/webhooks.php under /webhooks with no session, CSRF or throttling
  */
 abstract class ModuleServiceProvider extends ServiceProvider
@@ -38,7 +39,7 @@ abstract class ModuleServiceProvider extends ServiceProvider
         $routes = $base.'/src/Http/routes.php';
 
         if (is_file($routes) && ! $this->app->routesAreCached()) {
-            Route::prefix('api/v1')->middleware('api')->group($routes);
+            Route::prefix('v1')->middleware('api')->group($routes);
         }
 
         $webhooks = $base.'/src/Http/webhooks.php';
@@ -47,7 +48,19 @@ abstract class ModuleServiceProvider extends ServiceProvider
             Route::prefix('webhooks')->middleware(SubstituteBindings::class)->group($webhooks);
         }
 
+        $this->app->make(PermissionRegistry::class)->register($this->moduleName(), $this->permissions());
+
         $this->bootModule();
+    }
+
+    /**
+     * Permissions this module owns, as key => description (module.thing.action).
+     *
+     * @return array<string, string>
+     */
+    protected function permissions(): array
+    {
+        return [];
     }
 
     /** Hook for module-specific boot logic. */

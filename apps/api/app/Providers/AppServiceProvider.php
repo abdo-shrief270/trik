@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Authorization\PermissionGate;
+use App\Support\Authorization\PermissionRegistry;
 use App\Support\Events\EventPublisher;
 use App\Support\Events\LaravelEventPublisher;
 use App\Support\Tenancy\QueueTenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +28,8 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenantContext::class);
         $this->app->singleton(QueueTenancy::class);
         $this->app->bind(EventPublisher::class, LaravelEventPublisher::class);
+        $this->app->singleton(PermissionRegistry::class);
+        $this->app->scoped(PermissionGate::class);
     }
 
     public function boot(): void
@@ -32,6 +38,8 @@ final class AppServiceProvider extends ServiceProvider
         Model::automaticallyEagerLoadRelationships();
 
         $this->bootDatabaseRole();
+
+        Gate::before(fn (?Authenticatable $user, string $ability) => $this->app->make(PermissionGate::class)->before($user, $ability));
 
         $this->app->make(QueueTenancy::class)->register($this->app->make('queue'), $this->app->make('events'));
 

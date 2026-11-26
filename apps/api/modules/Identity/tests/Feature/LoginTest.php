@@ -11,7 +11,7 @@ beforeEach(function (): void {
 });
 
 it('issues a token for valid credentials', function (): void {
-    $response = $this->postJson('/api/v1/auth/login', [
+    $response = $this->postJson('/v1/auth/login', [
         'email' => 'MONA@example.com', 'password' => 'password', 'device_name' => 'iPhone',
     ])->assertOk();
 
@@ -21,7 +21,7 @@ it('issues a token for valid credentials', function (): void {
 
 it('signs the web app in with a session cookie', function (): void {
     $this->withHeader('Origin', 'http://localhost:3000')
-        ->postJson('/api/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'password'])
+        ->postJson('/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'password'])
         ->assertOk()
         ->assertJsonMissingPath('token');
 
@@ -29,19 +29,19 @@ it('signs the web app in with a session cookie', function (): void {
 });
 
 it('rejects a wrong password', function (): void {
-    $this->postJson('/api/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'nope', 'device_name' => 'x'])
+    $this->postJson('/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'nope', 'device_name' => 'x'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('email');
 });
 
 it('locks the account out after five failed attempts', function (): void {
     foreach (range(1, 5) as $_) {
-        $this->postJson('/api/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'nope', 'device_name' => 'x'])
+        $this->postJson('/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'nope', 'device_name' => 'x'])
             ->assertUnprocessable();
     }
 
     // even the right password is refused while locked
-    $this->postJson('/api/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'password', 'device_name' => 'x'])
+    $this->postJson('/v1/auth/login', ['email' => 'mona@example.com', 'password' => 'password', 'device_name' => 'x'])
         ->assertStatus(429);
 });
 
@@ -49,13 +49,13 @@ it('signs out the current token only', function (): void {
     $keep = $this->user->createToken('tablet')->plainTextToken;
     $drop = $this->user->createToken('phone')->plainTextToken;
 
-    $this->withToken($drop)->postJson('/api/v1/auth/logout')->assertNoContent();
+    $this->withToken($drop)->postJson('/v1/auth/logout')->assertNoContent();
 
     expect($this->user->tokens()->pluck('name')->all())->toBe(['tablet']);
     app('auth')->forgetGuards();
-    $this->withToken($keep)->getJson('/api/v1/auth/me')->assertOk();
+    $this->withToken($keep)->getJson('/v1/auth/me')->assertOk();
 });
 
 it('requires sign-in for protected routes', function (): void {
-    $this->getJson('/api/v1/auth/me')->assertUnauthorized();
+    $this->getJson('/v1/auth/me')->assertUnauthorized();
 });
