@@ -50,6 +50,7 @@ jobs:
           extensions: pdo_pgsql, redis, intl, bcmath
           coverage: none
       - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
       - run: vendor/bin/pint --test
       - run: vendor/bin/phpstan analyse --no-progress
       - run: vendor/bin/pest
