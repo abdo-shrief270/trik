@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Modules;
 
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -11,12 +12,21 @@ use Illuminate\Support\ServiceProvider;
  * Base class for every module's service provider.
  *
  * By convention a module lives in modules/{Name} and its provider is
- * Modules\{Name}\{Name}ServiceProvider. This base class loads the module's
- * migrations (database/migrations) and HTTP routes (src/Http/routes.php),
- * which are mounted under /api/v1 with the "api" middleware group.
+ * Modules\{Name}\{Name}ServiceProvider. This base class loads by convention:
+ *  - migrations from database/migrations
+ *  - src/Http/routes.php under /api/v1 with the "api" middleware group
+ *  - src/Http/webhooks.php under /webhooks with no session, CSRF or throttling
  */
 abstract class ModuleServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->registerModule();
+    }
+
+    /** Hook for module-specific bindings. */
+    protected function registerModule(): void {}
+
     public function boot(): void
     {
         $base = $this->modulePath();
@@ -29,6 +39,12 @@ abstract class ModuleServiceProvider extends ServiceProvider
 
         if (is_file($routes) && ! $this->app->routesAreCached()) {
             Route::prefix('api/v1')->middleware('api')->group($routes);
+        }
+
+        $webhooks = $base.'/src/Http/webhooks.php';
+
+        if (is_file($webhooks) && ! $this->app->routesAreCached()) {
+            Route::prefix('webhooks')->middleware(SubstituteBindings::class)->group($webhooks);
         }
 
         $this->bootModule();

@@ -7,10 +7,19 @@ namespace Tests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Tests never reach real providers (Meta, 360dialog, couriers…): fake every call.
+        Http::preventStrayRequests();
+    }
 
     /**
      * Migrations run on the owner connection (the app connection is the restricted role).

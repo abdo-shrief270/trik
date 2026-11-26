@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Support\Events\EventPublisher;
+use App\Support\Events\LaravelEventPublisher;
 use App\Support\Tenancy\QueueTenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -21,6 +23,7 @@ final class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantContext::class);
         $this->app->singleton(QueueTenancy::class);
+        $this->app->bind(EventPublisher::class, LaravelEventPublisher::class);
     }
 
     public function boot(): void
