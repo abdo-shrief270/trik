@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Identity\Http\Controllers;
 
+use App\Support\Inbox\WorkspaceBadges;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,14 +61,21 @@ final class AuthController
         return response()->json(null, 204);
     }
 
-    public function me(Request $request, WorkspaceDirectory $directory): JsonResponse
+    public function me(Request $request, WorkspaceDirectory $directory, WorkspaceBadges $badges): JsonResponse
     {
         $user = $this->user($request);
+        $workspaces = $directory->forUser($user->id);
+        // where work is waiting, per workspace (maintained counters: one query whatever the count)
+        $counts = $badges->forUser($user->id, array_map(fn (WorkspaceData $w): string => $w->id, $workspaces));
+        $withBadges = fn (array $w): array => [...$w, 'badges' => $counts[$w['id']] ?? ['unread' => 0, 'assigned_to_me' => 0]];
 
         return response()->json([
             'user' => $this->userPayload($user),
-            'workspaces' => array_map(fn (WorkspaceData $w): array => $w->toArray(), $directory->forUser($user->id)),
-            'organizations' => array_map(fn (OrganizationData $o): array => $o->toArray(), $directory->organizationsFor($user->id)),
+            'workspaces' => array_map(fn (WorkspaceData $w): array => $withBadges($w->toArray()), $workspaces),
+            'organizations' => array_map(fn (OrganizationData $o): array => [
+                ...$o->toArray(),
+                'workspaces' => array_map($withBadges, $o->toArray()['workspaces']),
+            ], $directory->organizationsFor($user->id)),
         ]);
     }
 

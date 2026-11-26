@@ -9,12 +9,8 @@ use App\Support\Http\Problem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
+use Modules\WhatsApp\Application\OutgoingMessages;
 use Modules\WhatsApp\Application\SendMessage;
-use Modules\WhatsApp\Domain\Messages\ButtonsMessage;
-use Modules\WhatsApp\Domain\Messages\MediaMessage;
-use Modules\WhatsApp\Domain\Messages\OutgoingMessage;
-use Modules\WhatsApp\Domain\Messages\TemplateMessage;
-use Modules\WhatsApp\Domain\Messages\TextMessage;
 use Modules\WhatsApp\Domain\PhoneNumber;
 use Modules\WhatsApp\Infrastructure\Models\Message;
 use Modules\WhatsApp\Infrastructure\Models\WhatsAppNumber;
@@ -41,51 +37,25 @@ final class MessageController
 
     public function store(Request $request, string $number, SendMessage $send): JsonResponse
     {
-        $data = $request->validate([
-            'to' => ['required', 'string', 'max:32'],
-            'type' => ['required', 'in:text,template,buttons,media'],
-            'reply_to' => ['nullable', 'string', 'max:128'],
-            'text' => ['required_if:type,text', 'string'],
-            'template' => ['required_if:type,template', 'array'],
-            'template.name' => ['required_if:type,template', 'string'],
-            'template.language' => ['required_if:type,template', 'string'],
-            'template.components' => ['sometimes', 'array'],
-            'buttons' => ['required_if:type,buttons', 'array'],
-            'body' => ['required_if:type,buttons', 'string'],
-            'media' => ['required_if:type,media', 'array'],
-        ]);
+        $data = $request->validate(['to' => ['required', 'string', 'max:32'], ...OutgoingMessages::rules()]);
 
         try {
             $to = PhoneNumber::fromString($data['to'], $this->country());
-            $message = $this->message($data);
+            $message = OutgoingMessages::fromArray($data);
         } catch (InvalidArgumentException $e) {
             throw Problem::invalid([str_contains($e->getMessage(), 'phone') ? 'to' : 'message' => [$e->getMessage()]]);
         }
 
-        $row = $send->handle(WhatsAppNumber::query()->findOrFail($number), $to, $message, $data['reply_to'] ?? null);
+        $row = $send->handle(WhatsAppNumber::query()->findOrFail($number), $to, $message, $data['reply_to'] ?? null, self::userId($request));
 
         return response()->json(['data' => $row->refresh()->toApi()], 202);
     }
 
-    /** @param array<string, mixed> $data */
-    private function message(array $data): OutgoingMessage
+    private static function userId(Request $request): ?string
     {
-        return match ($data['type']) {
-            'text' => new TextMessage((string) $data['text']),
-            'template' => new TemplateMessage(
-                (string) data_get($data, 'template.name'),
-                (string) data_get($data, 'template.language'),
-                array_values((array) data_get($data, 'template.components', [])),
-            ),
-            'buttons' => new ButtonsMessage((string) $data['body'], array_map('strval', (array) $data['buttons'])),
-            default => new MediaMessage(
-                (string) data_get($data, 'media.kind'),
-                data_get($data, 'media.link'),
-                data_get($data, 'media.id'),
-                data_get($data, 'media.caption'),
-                data_get($data, 'media.filename'),
-            ),
-        };
+        $id = $request->user()?->getAuthIdentifier();
+
+        return is_string($id) ? $id : null;
     }
 
     private function country(): string

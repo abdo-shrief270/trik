@@ -3,8 +3,7 @@ openapi: 3.1.0
 info:
   title: Trik API
   version: 1.0.0
-  description: 'Trik app and public API. Errors are RFC 9457 problem+json; lists use cursor pagination; writes accept Idempotency-Key. Operations
-    marked `x-status: planned` are not built yet. A test fails if a built route is missing here.'
+  description: 'Trik app and public API. Errors are RFC 9457 problem+json; lists use cursor pagination; writes accept Idempotency-Key. Operations marked `x-status: planned` are not built yet. A test fails if a built route is missing here.'
 servers:
 - url: https://api.trik.chat/v1
 - url: http://localhost:8080/v1
@@ -18,6 +17,7 @@ tags:
 - name: Organization
 - name: Team
 - name: WhatsApp
+- name: Inbox
 - name: Orders
 - name: Confirmation
 paths:
@@ -146,11 +146,11 @@ paths:
                   workspaces:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Workspace'
+                      $ref: '#/components/schemas/WorkspaceWithBadges'
                   organizations:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Organization'
+                      $ref: '#/components/schemas/OrganizationWithBadges'
         '401':
           $ref: '#/components/responses/Unauthenticated'
   /auth/forgot-password:
@@ -1168,53 +1168,6 @@ paths:
           $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
-  /orders/{orderId}:
-    get:
-      operationId: getOrder
-      summary: Get an order
-      tags:
-      - Orders
-      parameters:
-      - $ref: '#/components/parameters/WorkspaceId'
-      - $ref: '#/components/parameters/OrderId'
-      responses:
-        '200':
-          description: The order
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-      x-status: planned
-  /orders/{orderId}/confirm:
-    post:
-      operationId: confirmOrder
-      summary: Confirm an order
-      tags:
-      - Confirmation
-      parameters:
-      - $ref: '#/components/parameters/WorkspaceId'
-      - $ref: '#/components/parameters/IdempotencyKeyRequired'
-      - $ref: '#/components/parameters/OrderId'
-      responses:
-        '200':
-          description: The confirmed order
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Order'
-        '409':
-          description: The order can no longer be confirmed
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-      x-status: planned
   /workspace/audit:
     get:
       operationId: workspaceAudit
@@ -1737,6 +1690,981 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /inbox/conversations:
+    get:
+      operationId: listConversations
+      summary: 'The inbox: conversations, newest activity first'
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - open
+          - closed
+          - all
+          default: open
+      - in: query
+        name: assignee
+        schema:
+          type: string
+        description: '`me`, `unassigned` or a user id'
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Only conversations with unread customer messages
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}:
+    get:
+      operationId: getConversation
+      summary: A conversation
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateConversation
+      summary: Close or reopen; assign or unassign
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                  - open
+                  - closed
+                assignee_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+      x-permission: inbox.conversations.reply
+      description: Requires the `inbox.conversations.reply` permission in the workspace. Taking an unassigned conversation or letting go of your own needs only this; assigning anyone else also needs `inbox.conversations.assign` (403 `cannot-assign`). The assignee must be on the team and able to see conversations (422 `assignee-cannot-view`). Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}/read:
+    post:
+      operationId: markConversationRead
+      summary: Mark the customer's messages as read
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}/messages:
+    get:
+      operationId: listConversationMessages
+      summary: The customer's messages across the workspace's numbers, newest first
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: inbox.conversations.view
+      description: Requires the `inbox.conversations.view` permission in the workspace. Returns 404 where the inbox is not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WhatsAppMessage'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: replyToConversation
+      summary: Reply from the number the customer last wrote to
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutgoingMessage'
+      x-permission: inbox.conversations.reply
+      description: 'Requires the `inbox.conversations.reply` permission in the workspace. Free-form messages need the 24-hour window to be open (409 `window-closed`: send a template); 409 `no-number` when that number is no longer connected. Returns 404 where the inbox is not rolled out yet (feature flag).'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WhatsAppMessage'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders:
+    get:
+      operationId: listOrders
+      summary: Orders, newest first
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - new
+          - confirming
+          - awaiting_deposit
+          - confirmed
+          - ready_to_ship
+          - shipped
+          - delivered
+          - returned
+          - cancelled
+      - in: query
+        name: contact_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: needs_address_fix
+        schema:
+          type: boolean
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createOrder
+      summary: 'Create an order from chat (numbered per workspace: 1001, 1002…)'
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - items
+              properties:
+                contact_id:
+                  type: string
+                  format: uuid
+                  description: Or customer_phone
+                customer_phone:
+                  type: string
+                customer_name:
+                  type:
+                  - string
+                  - 'null'
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: object
+                    required:
+                    - title
+                    - quantity
+                    - unit_price
+                    properties:
+                      title:
+                        type: string
+                      sku:
+                        type:
+                        - string
+                        - 'null'
+                      variant:
+                        type:
+                        - string
+                        - 'null'
+                      quantity:
+                        type: integer
+                        minimum: 1
+                      unit_price:
+                        type: integer
+                        minimum: 0
+                        description: Minor units
+                shipping:
+                  type: integer
+                  minimum: 0
+                discount:
+                  type: integer
+                  minimum: 0
+                payment_method:
+                  type: string
+                  enum:
+                  - cod
+                  - prepaid
+                  default: cod
+                note:
+                  type:
+                  - string
+                  - 'null'
+                address:
+                  $ref: '#/components/schemas/Address'
+      x-permission: orders.orders.create
+      description: Requires the `orders.orders.create` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}:
+    get:
+      operationId: getOrder
+      summary: An order
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateOrder
+      summary: Fix the address (structured), flag it as needing a fix, or edit the note
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address:
+                  $ref: '#/components/schemas/Address'
+                address_needs_fix:
+                  type: boolean
+                note:
+                  type:
+                  - string
+                  - 'null'
+                owner_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                  description: Who is responsible (422 owner-cannot-view if they are not on the team or cannot see orders)
+      x-permission: orders.orders.update
+      description: Requires the `orders.orders.update` permission in the workspace. A fixed address needs governorate, area and street (422 `address-incomplete`); store updates no longer overwrite it. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/confirm:
+    post:
+      operationId: confirmOrder
+      summary: Confirm an order (idempotent)
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.confirm
+      description: Requires the `orders.orders.confirm` permission in the workspace. Emits `order.confirmed.v1`. 409 `invalid-transition` (e.g. cancelled), `address-needs-fix`, `order-changed`. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/cancel:
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+      x-permission: orders.orders.confirm
+      description: Requires the `orders.orders.confirm` permission in the workspace. Not possible once shipped (409 `invalid-transition`). Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/timeline:
+    get:
+      operationId: getOrderTimeline
+      summary: Everything that happened to the order, oldest first
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderEvent'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /inbox/conversations/{conversation}/orders:
+    get:
+      operationId: getConversationOrders
+      summary: 'The order card: the customer''s latest orders (up to 20)'
+      tags:
+      - Inbox
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: conversation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /addresses/governorates:
+    get:
+      operationId: listGovernorates
+      summary: Egypt's 27 governorates (ISO 3166-2:EG codes, Arabic and English names)
+      tags:
+      - Orders
+      parameters: []
+      description: ''
+      responses:
+        '200':
+          description: Governorates
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Governorate'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /confirmation/settings:
+    get:
+      operationId: getConfirmationSettings
+      summary: Order confirmation settings
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: confirmation.settings.view
+      description: Requires the `confirmation.settings.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfirmationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateConfirmationSettings
+      summary: Change the confirmation settings (send only the fields to change)
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmationSettings'
+      x-permission: confirmation.settings.manage
+      description: Requires the `confirmation.settings.manage` permission in the workspace. Turning it on needs a template name. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfirmationSettings'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/confirmation:
+    get:
+      operationId: getOrderConfirmation
+      summary: Where the order's WhatsApp confirmation stands (null if none)
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    oneOf:
+                    - $ref: '#/components/schemas/ConfirmationRun'
+                    - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/board:
+    get:
+      operationId: getConfirmationBoard
+      summary: 'The confirmation board: one column (paged) and the counts of all columns'
+      tags:
+      - Orders
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      - in: query
+        name: stage
+        schema:
+          type: string
+          enum:
+          - new
+          - awaiting_customer
+          - needs_call
+          - confirmed
+          - cancelled
+          default: new
+      - in: query
+        name: owner
+        schema:
+          type: string
+        description: '`me`, `unassigned` or a user id'
+      - in: query
+        name: governorate
+        schema:
+          type: string
+        description: ISO 3166-2:EG code
+      - in: query
+        name: min_total
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: max_total
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: min_risk
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 100
+      - in: query
+        name: placed_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: placed_to
+        schema:
+          type: string
+          format: date
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Open columns list the longest-waiting first; confirmed and cancelled newest first. Counts use the same filters. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Board
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                - counts
+                - stage
+                properties:
+                  stage:
+                    type: string
+                    enum:
+                    - new
+                    - awaiting_customer
+                    - needs_call
+                    - confirmed
+                    - cancelled
+                  counts:
+                    type: object
+                    properties:
+                      new:
+                        type: integer
+                      awaiting_customer:
+                        type: integer
+                      needs_call:
+                        type: integer
+                      confirmed:
+                        type: integer
+                      cancelled:
+                        type: integer
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/Order'
+                      - type: object
+                        properties:
+                          waiting_seconds:
+                            type: integer
+                            description: 'Ageing timer: since the order was placed, or since it needed a call'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /confirmation/bulk:
+    post:
+      operationId: bulkConfirmationAction
+      summary: Confirm, cancel or remind up to 100 orders
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              - order_ids
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - confirm
+                  - cancel
+                  - remind
+                order_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+                    format: uuid
+                reason:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 500
+      x-permission: orders.orders.confirm
+      description: Requires the `orders.orders.confirm` permission in the workspace. Each order is handled on its own and reported; written to the workspace audit log (`orders.bulk_<action>`) and each order's timeline. Remind sends the confirmation template again now (or the first one when there is none). Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: One result per order
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        order_id:
+                          type: string
+                          format: uuid
+                        result:
+                          type: string
+                          enum:
+                          - ok
+                          - sent
+                          - started
+                          - skipped
+                          - not_found
+                          - error
+                        code:
+                          type: string
+                          description: 'With result=error: invalid-transition, address-needs-fix…'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 components:
   securitySchemes:
     bearerAuth:
@@ -1787,12 +2715,6 @@ components:
       schema:
         type: string
       description: meta.next_cursor or meta.prev_cursor from the previous page
-    OrderId:
-      in: path
-      name: orderId
-      required: true
-      schema:
-        type: string
     OrganizationId:
       in: header
       name: X-Organization-Id
@@ -2087,6 +3009,7 @@ components:
           type: string
           example: EGP
     Order:
+      title: Order
       type: object
       required:
       - id
@@ -2096,9 +3019,16 @@ components:
       properties:
         id:
           type: string
+          format: uuid
         number:
           type: string
           example: '1048'
+        source:
+          type: string
+          enum:
+          - chat
+          - shopify
+          - easyorders
         status:
           type: string
           enum:
@@ -2111,19 +3041,139 @@ components:
           - delivered
           - returned
           - cancelled
+        next_action:
+          type:
+          - string
+          - 'null'
+          enum:
+          - fix_address
+          - confirm
+          - resend_deposit_link
+          - null
+          description: What the team should do next (the order bar in chat)
+        contact_id:
+          type: string
+          format: uuid
+        customer:
+          type: object
+          properties:
+            name:
+              type:
+              - string
+              - 'null'
+            phone:
+              type: string
+        payment_method:
+          type: string
+          enum:
+          - cod
+          - prepaid
+        subtotal:
+          $ref: '#/components/schemas/Money'
+        shipping:
+          $ref: '#/components/schemas/Money'
+        discount:
+          $ref: '#/components/schemas/Money'
         total:
           $ref: '#/components/schemas/Money'
         cod_amount:
           $ref: '#/components/schemas/Money'
-        risk_score:
-          type: integer
-          minimum: 0
-          maximum: 100
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+              variant:
+                type:
+                - string
+                - 'null'
+              sku:
+                type:
+                - string
+                - 'null'
+              quantity:
+                type: integer
+                minimum: 1
+              unit_price:
+                $ref: '#/components/schemas/Money'
+              total:
+                $ref: '#/components/schemas/Money'
+        address:
+          $ref: '#/components/schemas/OrderAddress'
+        delivery:
+          type: object
+          properties:
+            courier:
+              type:
+              - string
+              - 'null'
+            tracking_number:
+              type:
+              - string
+              - 'null'
+            tracking_url:
+              type:
+              - string
+              - 'null'
+        note:
+          type:
+          - string
+          - 'null'
+        placed_at:
+          type: string
+          format: date-time
         confirmed_at:
           type:
           - string
           - 'null'
           format: date-time
+        cancelled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        shipped_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        stage:
+          type: string
+          enum:
+          - new
+          - awaiting_customer
+          - needs_call
+          - confirmed
+          - cancelled
+          description: Column on the confirmation board
+        owner_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        risk_score:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+          maximum: 100
+        needs_call:
+          type:
+          - object
+          - 'null'
+          properties:
+            since:
+              type: string
+              format: date-time
+            reason:
+              type: string
     WhatsAppMessage:
       title: WhatsAppMessage
       type: object
@@ -2170,6 +3220,23 @@ components:
           type:
           - string
           - 'null'
+        received_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        sent_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Team member who sent it (outbound, from the API or the inbox)
+        content:
+          type: object
+          description: 'What the message says. Inbound: parsed fields (text, media_id, mime_type, reply_id, context_message_id, contact_name). Outbound: the Cloud API content object (text, template, interactive or media).'
     OrganizationRole:
       type:
       - string
@@ -2264,3 +3331,440 @@ components:
                 type: string
               role:
                 $ref: '#/components/schemas/RoleName'
+    OutgoingMessage:
+      type: object
+      required:
+      - type
+      properties:
+        type:
+          type: string
+          enum:
+          - text
+          - template
+          - buttons
+          - media
+        reply_to:
+          type: string
+        text:
+          type: string
+          maxLength: 4096
+        template:
+          type: object
+          properties:
+            name:
+              type: string
+            language:
+              type: string
+            components:
+              type: array
+              items:
+                type: object
+        body:
+          type: string
+        buttons:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 20
+          maxProperties: 3
+        media:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+              - image
+              - video
+              - audio
+              - document
+              - sticker
+            link:
+              type: string
+            id:
+              type: string
+            caption:
+              type: string
+            filename:
+              type: string
+      title: OutgoingMessage
+    MessagingWindow:
+      title: MessagingWindow
+      type: object
+      required:
+      - open
+      - closes_at
+      - free_until
+      - entry
+      description: 'Free-form messages are allowed only while open (24 hours after the customer last wrote); templates always are. free_until: Meta free entry point (72 h after answering a customer who came from an ad); it makes messages free, it does not extend the window.'
+      properties:
+        open:
+          type: boolean
+        closes_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        free_until:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        entry:
+          type:
+          - string
+          - 'null'
+          enum:
+          - ad
+          - null
+    Contact:
+      title: Contact
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type:
+          - string
+          - 'null'
+        phone:
+          type:
+          - string
+          - 'null'
+          description: Digits, international (wa_id format)
+    Conversation:
+      title: Conversation
+      type: object
+      description: One per customer per workspace, across numbers and channels.
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - open
+          - closed
+        contact:
+          $ref: '#/components/schemas/Contact'
+        assignee_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        number_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Replies go out from this number (the one the customer last wrote to)
+        unread_count:
+          type: integer
+          minimum: 0
+        last_message:
+          type: object
+          properties:
+            at:
+              type: string
+              format: date-time
+            direction:
+              type: string
+              enum:
+              - in
+              - out
+            type:
+              type: string
+            preview:
+              type:
+              - string
+              - 'null'
+        last_inbound_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        window:
+          $ref: '#/components/schemas/MessagingWindow'
+        closed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    WorkspaceBadges:
+      title: WorkspaceBadges
+      type: object
+      required:
+      - unread
+      - assigned_to_me
+      description: 'Where work is waiting (from maintained counters). Live updates: `badges.updated` on the real-time channel `user:{id}`.'
+      properties:
+        unread:
+          type: integer
+          minimum: 0
+          description: Open conversations with unread customer messages
+        assigned_to_me:
+          type: integer
+          minimum: 0
+          description: Open conversations assigned to the signed-in user
+    WorkspaceWithBadges:
+      title: WorkspaceWithBadges
+      allOf:
+      - $ref: '#/components/schemas/Workspace'
+      - type: object
+        required:
+        - badges
+        properties:
+          badges:
+            $ref: '#/components/schemas/WorkspaceBadges'
+    OrganizationWithBadges:
+      type: object
+      description: One of the caller's organizations with only the workspaces they belong to.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/OrganizationRole'
+        workspaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceWithBadges'
+      title: OrganizationWithBadges
+    Address:
+      title: Address
+      type: object
+      description: Delivery address. `raw` as the store or customer wrote it; the structured fields are filled by an agent (#344).
+      properties:
+        raw:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        governorate:
+          type:
+          - string
+          - 'null'
+          description: ISO 3166-2:EG code, see GET /addresses/governorates
+        area:
+          type:
+          - string
+          - 'null'
+          maxLength: 120
+        street:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        building:
+          type:
+          - string
+          - 'null'
+          maxLength: 40
+        floor:
+          type:
+          - string
+          - 'null'
+          maxLength: 20
+        apartment:
+          type:
+          - string
+          - 'null'
+          maxLength: 20
+        landmark:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+    OrderAddress:
+      title: OrderAddress
+      type: object
+      description: Delivery address. `raw` as the store or customer wrote it; the structured fields are filled by an agent (#344).
+      properties:
+        raw:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+        governorate:
+          type:
+          - string
+          - 'null'
+          description: ISO 3166-2:EG code, see GET /addresses/governorates
+        area:
+          type:
+          - string
+          - 'null'
+          maxLength: 120
+        street:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        building:
+          type:
+          - string
+          - 'null'
+          maxLength: 40
+        floor:
+          type:
+          - string
+          - 'null'
+          maxLength: 20
+        apartment:
+          type:
+          - string
+          - 'null'
+          maxLength: 20
+        landmark:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        line:
+          type:
+          - string
+          - 'null'
+          description: One line for people (Arabic)
+        needs_fix:
+          type: boolean
+        fixed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    OrderEvent:
+      title: OrderEvent
+      type: object
+      properties:
+        type:
+          type: string
+          description: created, status_changed, updated, address_fixed, address_flagged, address_unflagged, note_changed
+        actor_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        data:
+          type:
+          - object
+          - 'null'
+        at:
+          type: string
+          format: date-time
+    Governorate:
+      title: Governorate
+      type: object
+      properties:
+        code:
+          type: string
+        name_ar:
+          type: string
+        name_en:
+          type: string
+    ConfirmationSettings:
+      title: ConfirmationSettings
+      type: object
+      description: 'Off until an approved template is chosen. The template gets {{1}} customer name, {{2}} order number, {{3}} amount due on delivery, and three quick-reply buttons in this order: Confirm, Change, Cancel.'
+      properties:
+        enabled:
+          type: boolean
+        number_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Number to send from (default: the first connected number)'
+        template_name:
+          type:
+          - string
+          - 'null'
+          pattern: ^[a-z0-9_]+$
+        template_language:
+          type: string
+          example: ar
+        reminder_template_name:
+          type:
+          - string
+          - 'null'
+          pattern: ^[a-z0-9_]+$
+        reminder_after_minutes:
+          type: integer
+          minimum: 5
+          maximum: 10080
+          default: 120
+        max_reminders:
+          type: integer
+          minimum: 0
+          maximum: 5
+          default: 1
+        escalate_after_minutes:
+          type: integer
+          minimum: 5
+          maximum: 10080
+          default: 120
+        confirmed_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+        cancelled_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+        change_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+    ConfirmationRun:
+      title: ConfirmationRun
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - resolved
+          - escalated
+          - failed
+          - skipped
+          description: escalated = a person needs to call
+        outcome:
+          type:
+          - string
+          - 'null'
+          description: confirmed, cancelled, change_requested, no_reply, settled_elsewhere, address-needs-fix, no_number, send_failed
+        messages_sent:
+          type: integer
+        reminders_sent:
+          type: integer
+        next_action_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time

@@ -101,6 +101,9 @@ return [
             // Sent as a startup option (-c role=…), so it holds from the first query.
             'role' => env('DB_ROLE', 'trik_app'),
             'server_options' => array_filter(['role' => env('DB_ROLE', 'trik_app')]),
+            // Laravel writes timestamps without an offset: the session must be in the app's zone (UTC),
+            // whatever the server's default, or every naive timestamp is shifted on the way in.
+            'timezone' => 'UTC',
         ],
 
         // Owns the tables. Used for migrations and for system work across workspaces only.
@@ -117,6 +120,7 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [

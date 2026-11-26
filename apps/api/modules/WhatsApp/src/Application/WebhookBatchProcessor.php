@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Modules\WhatsApp\Application;
 
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\WhatsApp\Application\Events\BroadcastProgressed;
+use Modules\WhatsApp\Application\Events\LoggedMessage;
 use Modules\WhatsApp\Application\Events\MessageReceived;
+use Modules\WhatsApp\Application\Events\MessagesLogged;
 use Modules\WhatsApp\Application\Events\MessageStatusChanged;
 use Modules\WhatsApp\Domain\Direction;
 use Modules\WhatsApp\Domain\Inbound\InboundMessage;
@@ -21,14 +24,14 @@ use Modules\WhatsApp\Infrastructure\Models\WebhookEvent;
  *  - inbound messages: one de-duplication insert + one message insert
  *  - statuses: reduced to one row per message, then one UPDATE … FROM (VALUES …) per table
  * Must run inside the workspace and inside a transaction. Returns the events to publish
- * after commit.
+ * after commit; MessagesLogged is dispatched inside the transaction (see that event).
  */
 final class WebhookBatchProcessor
 {
     /** Status webhooks for messages older than this are ignored (keeps partition pruning). */
     public const STATUS_WINDOW_DAYS = 30;
 
-    public function __construct(private readonly ProviderRegistry $providers) {}
+    public function __construct(private readonly ProviderRegistry $providers, private readonly Dispatcher $dispatcher) {}
 
     /**
      * @param  list<WebhookEvent>  $events
@@ -65,6 +68,9 @@ final class WebhookBatchProcessor
             return [];
         }
 
+        // Oldest first, so ids (UUIDv7, monotonic) follow the order customers wrote in.
+        usort($items, fn (array $a, array $b): int => $a[1]->timestamp <=> $b[1]->timestamp);
+
         $now = now();
         $keys = [];
         $bindings = [];
@@ -88,6 +94,7 @@ final class WebhookBatchProcessor
 
         $rows = [];
         $events = [];
+        $logged = [];
 
         foreach ($items as [$numberId, $m]) {
             if (! isset($isFresh[$numberId.'|'.$m->messageId])) {
@@ -95,6 +102,7 @@ final class WebhookBatchProcessor
             }
 
             $id = (string) Str::uuid7();
+            $receivedAt = $m->timestamp > 0 ? Carbon::createFromTimestamp($m->timestamp) : $now;
             $rows[] = [
                 'id' => $id,
                 'workspace_id' => $workspaceId,
@@ -113,15 +121,27 @@ final class WebhookBatchProcessor
                     'raw' => $m->raw,
                 ], fn ($v) => $v !== null), JSON_THROW_ON_ERROR),
                 'status' => MessageStatus::Received->value,
-                'received_at' => $m->timestamp > 0 ? Carbon::createFromTimestamp($m->timestamp) : $now,
+                'received_at' => $receivedAt,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
             $events[] = new MessageReceived($workspaceId, $numberId, $id, $m);
+            $logged[] = new LoggedMessage(
+                messageId: $id,
+                numberId: $numberId,
+                direction: Direction::Inbound,
+                contactPhone: $m->from,
+                type: $m->type,
+                at: $receivedAt,
+                preview: $m->text,
+                contactName: $m->contactName,
+                fromAd: isset($m->raw['referral']),
+            );
         }
 
         if ($rows !== []) {
             DB::table('whatsapp_messages')->insert($rows);
+            $this->dispatcher->dispatch(new MessagesLogged($workspaceId, $logged));
         }
 
         return $events;
