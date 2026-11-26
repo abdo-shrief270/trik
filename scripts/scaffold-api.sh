@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Creates the Laravel 12 app in apps/api without touching modules/ or README.md.
+# Creates the Laravel 13 app in apps/api without touching modules/ or README.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ -f apps/api/composer.json ] && { echo "apps/api already has a Laravel app"; exit 0; }
 
 tmp="$(mktemp -d)"
-composer create-project laravel/laravel "$tmp/api" "^12.0" --no-interaction
+composer create-project laravel/laravel "$tmp/api" "^13.0" --no-interaction
 cp -rn "$tmp/api/." apps/api/
 rm -rf "$tmp"
 

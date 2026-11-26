@@ -33,20 +33,20 @@ jobs:
         working-directory: apps/api
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:19-alpine
         env: { POSTGRES_DB: trik_test, POSTGRES_USER: trik, POSTGRES_PASSWORD: trik }
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U trik" --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:7.4-alpine
+        image: redis:8-alpine
         ports: ["6379:6379"]
 
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          php-version: "8.5"
           extensions: pdo_pgsql, redis, intl, bcmath
           coverage: none
       - run: composer install --no-interaction --prefer-dist

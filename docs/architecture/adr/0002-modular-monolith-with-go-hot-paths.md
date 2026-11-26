@@ -9,7 +9,7 @@ A small team must ship fast, but webhook intake, message writing and sending see
 
 ## Decision
 
-The core is one Laravel 12 app on Octane (FrankenPHP) split into modules with enforced boundaries. Three Go services handle webhook intake, message writing and dispatch. They communicate through Redpanda.
+The core is one Laravel 13 app on Octane (FrankenPHP) split into modules with enforced boundaries. Three Go services handle webhook intake, message writing and dispatch. They communicate through Redpanda.
 
 ## Consequences
 

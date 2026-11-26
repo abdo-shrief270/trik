@@ -1,6 +1,6 @@
 # apps/api — Trik core platform
 
-Laravel 12 on PHP 8.4, served by **Octane with FrankenPHP**. Built as a **modular monolith**:
+Laravel 13 on PHP 8.5, served by **Octane with FrankenPHP**. Built as a **modular monolith**:
 one Laravel app, split into modules with hard boundaries, so each module can be extracted later if it needs to scale on its own.
 
 ## Create the app (first time only)

@@ -12,9 +12,9 @@ Every chat becomes a confirmed, delivered and profitable order.
 
 | Path | What lives there | Stack |
 |---|---|---|
-| `apps/api` | Core platform: a modular monolith with one module per business area | Laravel 12, PHP 8.4, Octane (FrankenPHP) |
-| `apps/web` | Seller web app: inbox, confirmations, orders, analytics, settings | Nuxt 4, Vue 3, TypeScript |
-| `apps/mobile` | Owner and agent mobile apps (iOS and Android) | Flutter, Drift (offline store) |
+| `apps/api` | Core platform: a modular monolith with one module per business area | Laravel 13, PHP 8.5, Octane (FrankenPHP) |
+| `apps/web` | Seller web app: inbox, confirmations, orders, analytics, settings | Nuxt 4.7, Vue 3.5, TypeScript 5.9 |
+| `apps/mobile` | Owner and agent mobile apps (iOS and Android) | Flutter 3.50, Drift (offline store) |
 | `services/webhook-intake` | Receives Meta and store webhooks, verifies, writes to the event log | Go |
 | `services/message-writer` | Persists inbound and outbound messages at high volume | Go |
 | `services/dispatcher` | Sends outbound messages within Meta rate limits, retries with backoff | Go |
@@ -35,7 +35,7 @@ Meta / Stores / Couriers ──► webhook-intake (Go) ──► Redpanda (event
              message-writer (Go)                 apps/api (Laravel)          ClickHouse (analytics)
                     │                         modules · outbox · jobs
                     ▼                                   │
-             PostgreSQL 17 ◄── PgBouncer ──────────────┘──► Redis (cache · queues · locks)
+             PostgreSQL 19 ◄── PgBouncer ──────────────┘──► Redis (cache · queues · locks)
                                                         │
                     Centrifugo (real-time) ◄────────────┘──► dispatcher (Go) ──► Meta Cloud API
                                                         │
@@ -51,10 +51,10 @@ Full detail: [`docs/architecture`](docs/architecture). Decisions: [`docs/archite
 | Tool | Version |
 |---|---|
 | Docker Desktop (with Compose v2) | latest |
-| PHP + Composer | PHP 8.4, Composer 2 |
-| Node.js + pnpm | Node 22 LTS, pnpm 9+ |
-| Go | 1.24+ |
-| Flutter | stable channel |
+| PHP + Composer | PHP 8.5, Composer 2 |
+| Node.js + pnpm | Node 26 LTS, pnpm 12 |
+| Go | 1.27 |
+| Flutter | 3.50 (stable) |
 | Make | GNU Make (Windows: use `scripts/bootstrap.ps1` or WSL) |
 
 Check everything with `./scripts/bootstrap.sh` (macOS, Linux, WSL) or `scripts\bootstrap.ps1` (Windows PowerShell).
@@ -63,7 +63,7 @@ Check everything with `./scripts/bootstrap.sh` (macOS, Linux, WSL) or `scripts\b
 
 ```bash
 cp .env.example .env          # local-only passwords and ports
-make up                       # PostgreSQL, PgBouncer, Redis x3, Redpanda, ClickHouse, Meilisearch, Centrifugo, Mailpit, MinIO
+make up                       # PostgreSQL 19, PgBouncer, Redis x3, Redpanda, ClickHouse, Meilisearch, Centrifugo, Mailpit, MinIO
 make ps                       # check every service is healthy
 ```
 
@@ -83,7 +83,7 @@ Local service URLs (default ports):
 Each app folder has its own README with the exact commands. The short version:
 
 ```bash
-make scaffold-api      # Laravel 12 into apps/api
+make scaffold-api      # Laravel 13 into apps/api
 make scaffold-web      # Nuxt 4 into apps/web
 make scaffold-mobile   # Flutter into apps/mobile
 ```
