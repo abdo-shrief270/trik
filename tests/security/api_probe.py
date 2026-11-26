@@ -167,6 +167,16 @@ check("cannot create an order for another workspace's contact", r.status_code ==
 r = call("POST", "/v1/orders", A["token"], A["ws"], {"customer_phone": "01000000001", "items": [{"title": "x", "quantity": -5, "unit_price": 100}]}, {"Idempotency-Key": str(uuid.uuid4())})
 check("negative quantities are refused", r.status_code == 422, r.status_code)
 
+# ---------------- confirmation engine
+r = call("PUT", "/v1/confirmation/settings", agent["token"], A["ws"], {"enabled": False})
+check("an agent cannot change confirmation settings", r.status_code == 403, r.status_code)
+r = call("PUT", "/v1/confirmation/settings", B["token"], B["ws"], {"number_id": NA})
+check("confirmation cannot send from another workspace's number", r.status_code == 422, r.status_code)
+r = call("PUT", "/v1/confirmation/settings", A["token"], A["ws"], {"template_name": "x'); drop table orders_orders; --"})
+check("template names are restricted to Meta's format", r.status_code == 422, r.status_code)
+r = call("GET", f"/v1/orders/{OA}/confirmation", B["token"], B["ws"])
+check("IDOR GET /v1/orders/{A-order}/confirmation from another workspace", r.status_code == 404, r.status_code)
+
 # ---------------- authentication
 r = call("POST", "/v1/auth/login", body={"email": "' OR 1=1 --", "password": "x", "device_name": "p"})
 check("SQL-ish email rejected by validation", r.status_code == 422, r.status_code)

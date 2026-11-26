@@ -2370,6 +2370,105 @@ paths:
                       $ref: '#/components/schemas/Governorate'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+  /confirmation/settings:
+    get:
+      operationId: getConfirmationSettings
+      summary: Order confirmation settings
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: confirmation.settings.view
+      description: Requires the `confirmation.settings.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfirmationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateConfirmationSettings
+      summary: Change the confirmation settings (send only the fields to change)
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmationSettings'
+      x-permission: confirmation.settings.manage
+      description: Requires the `confirmation.settings.manage` permission in the workspace. Turning it on needs a template name. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConfirmationSettings'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/confirmation:
+    get:
+      operationId: getOrderConfirmation
+      summary: Where the order's WhatsApp confirmation stands (null if none)
+      tags:
+      - Confirmation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires the `orders.orders.view` permission in the workspace. Returns 404 where orders are not rolled out yet (feature flag).
+      responses:
+        '200':
+          description: The run
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    oneOf:
+                    - $ref: '#/components/schemas/ConfirmationRun'
+                    - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -3343,3 +3442,103 @@ components:
           type: string
         name_en:
           type: string
+    ConfirmationSettings:
+      title: ConfirmationSettings
+      type: object
+      description: 'Off until an approved template is chosen. The template gets {{1}} customer name, {{2}} order number, {{3}} amount due on delivery, and three quick-reply buttons in this order: Confirm, Change, Cancel.'
+      properties:
+        enabled:
+          type: boolean
+        number_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: 'Number to send from (default: the first connected number)'
+        template_name:
+          type:
+          - string
+          - 'null'
+          pattern: ^[a-z0-9_]+$
+        template_language:
+          type: string
+          example: ar
+        reminder_template_name:
+          type:
+          - string
+          - 'null'
+          pattern: ^[a-z0-9_]+$
+        reminder_after_minutes:
+          type: integer
+          minimum: 5
+          maximum: 10080
+          default: 120
+        max_reminders:
+          type: integer
+          minimum: 0
+          maximum: 5
+          default: 1
+        escalate_after_minutes:
+          type: integer
+          minimum: 5
+          maximum: 10080
+          default: 120
+        confirmed_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+        cancelled_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+        change_reply:
+          type:
+          - string
+          - 'null'
+          maxLength: 1024
+    ConfirmationRun:
+      title: ConfirmationRun
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - resolved
+          - escalated
+          - failed
+          - skipped
+          description: escalated = a person needs to call
+        outcome:
+          type:
+          - string
+          - 'null'
+          description: confirmed, cancelled, change_requested, no_reply, settled_elsewhere, address-needs-fix, no_number, send_failed
+        messages_sent:
+          type: integer
+        reminders_sent:
+          type: integer
+        next_action_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time

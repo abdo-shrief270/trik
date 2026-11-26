@@ -64,6 +64,16 @@ final class ManageOrder
         return $order;
     }
 
+    /**
+     * The same, for other modules that hold only the order id (the confirmation engine).
+     *
+     * @param  'whatsapp'|'call'|'sms'|'agent'  $channel
+     */
+    public function moveById(string $orderId, OrderStatus $to, ?string $actorId, string $channel, ?string $reason = null): void
+    {
+        $this->moveTo(Order::query()->findOrFail($orderId), $to, $actorId, $channel, $reason);
+    }
+
     /** Puts the agent's structured address on the order (#344); the store's original stays in `raw`. */
     public function fixAddress(Order $order, Address $address, ?string $actorId): Order
     {

@@ -33,6 +33,7 @@ enum WorkspaceRole: string
                 'orders.orders.create',
                 'orders.orders.update',
                 'orders.orders.confirm',
+                'confirmation.settings.view',
             ],
             self::Custom => [],
         };
