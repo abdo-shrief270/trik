@@ -34,7 +34,7 @@ final class MessageController
             ->when($contact !== null, fn ($q) => $q->where('contact_phone', $contact))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->cursorPaginate(CursorPage::perPage($request));
+            ->cursorPaginate(CursorPage::perPage($request), cursor: CursorPage::cursor($request, ['created_at' => 'datetime', 'id' => 'uuid']));
 
         return CursorPage::response($page, fn (Message $m): array => $m->toApi());
     }

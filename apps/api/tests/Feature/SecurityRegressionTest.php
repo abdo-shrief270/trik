@@ -6,10 +6,12 @@ use App\Http\Middleware\ResolveWorkspace;
 use App\Support\Authorization\PermissionGate;
 use App\Support\Http\Idempotency;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Modules\Identity\Infrastructure\Models\User;
 use Modules\WhatsApp\Application\ConnectNumber;
 use Modules\WhatsApp\Domain\Provider;
@@ -107,7 +109,7 @@ it('F-04: oversized bodies are refused before any work', function (): void {
 });
 
 it('F-05: an address flooding bad webhooks is throttled, valid traffic is not counted', function (): void {
-    foreach (range(1, WebhookController::FAILURES_PER_MINUTE) as $_) {
+    foreach (range(1, WebhookController::UNKNOWN_PER_MINUTE) as $_) {
         $this->postJson('/webhooks/whatsapp/fake/'.str()->uuid(), [])->assertNotFound();
     }
 
@@ -205,4 +207,38 @@ it('F-13: a user owns a limited number of workspaces', function (): void {
 
     $this->flushHeaders()->withHeaders($this->owner['headers'])->postJson('/v1/workspaces', ['name' => 'Second'])
         ->assertForbidden()->assertJsonPath('code', 'workspace-limit');
+});
+
+it('R2-01: behind the proxy, rate limits see the real client IP; direct clients cannot fake it', function (): void {
+    Route::get('/v1/_ip', fn (Request $r) => ['ip' => $r->ip(), 'secure' => $r->isSecure()]);
+
+    $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1', 'HTTP_X_FORWARDED_FOR' => '41.33.1.2', 'HTTP_X_FORWARDED_PROTO' => 'https'])
+        ->getJson('/v1/_ip')->assertJson(['ip' => '41.33.1.2', 'secure' => true]);
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9', 'HTTP_X_FORWARDED_FOR' => '41.33.1.2'])
+        ->getJson('/v1/_ip')->assertJson(['ip' => '203.0.113.9']);
+});
+
+it('R2-02: readiness checks are throttled', function (): void {
+    foreach (range(1, 60) as $_) {
+        $this->getJson('/readyz');
+    }
+
+    $this->getJson('/readyz')->assertStatus(429);
+});
+
+it('R2-03: a crafted pagination cursor answers 400, not 500', function (): void {
+    $number = $this->flushHeaders()->withHeaders($this->owner['headers'])
+        ->postJson('/v1/whatsapp/numbers', ['provider' => 'fake', 'external_id' => 'r203', 'credentials' => ['api_key' => 'k']])->json('data.id');
+    $evil = rtrim(strtr(base64_encode(json_encode(['created_at' => "x' or 1=1", 'id' => 'nope', '_pointsToNextItems' => true])), '+/', '-_'), '=');
+
+    $this->getJson("/v1/whatsapp/numbers/{$number}/messages?cursor={$evil}")->assertStatus(400)->assertJsonPath('code', 'invalid-cursor');
+    $this->getJson('/v1/workspace/members?cursor=not-base64-at-all')->assertStatus(400);
+});
+
+it('R2-04: method spoofing is refused', function (): void {
+    $this->flushHeaders()->withHeaders([...$this->owner['headers'], 'X-HTTP-Method-Override' => 'DELETE'])
+        ->postJson('/v1/workspaces', ['name' => 'x'])->assertStatus(400)->assertJsonPath('code', 'method-override-not-allowed');
+    $this->flushHeaders()->withHeaders($this->owner['headers'])
+        ->postJson('/v1/workspaces', ['name' => 'x', '_method' => 'DELETE'])->assertStatus(400);
 });
