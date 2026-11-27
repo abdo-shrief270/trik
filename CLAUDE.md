@@ -119,9 +119,10 @@ Done and merged on `main`:
 - inbox conversations + 24 h window (#379), workspace badges (#380), Orders module + order card (#381),
   confirmation engine (#382) and confirmation board (#383).
 
-Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. Its waitlist form posts to
-`POST /v1/waitlist`, which the API does not have yet (API part of #102, double opt-in). Keep the copy in
-`apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only for "confirmed", never on light).
+Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. No waitlist: every call to
+action opens a WhatsApp chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`) until the web app's sign-up is live. No public email
+address yet. Keep the copy in `apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only
+for "confirmed", never on light).
 
 Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
 - **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC

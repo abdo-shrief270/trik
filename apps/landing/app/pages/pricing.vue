@@ -1,7 +1,6 @@
 <script setup lang="ts">
 usePageSeo('pricing')
 const { t } = useI18n()
-const localePath = useLocalePath()
 const { list } = useCopy()
 
 const plans = computed(() => list<{ name: string; for: string; features: string[] }>('pricing.plans'))
@@ -63,7 +62,7 @@ const open = ref<number | null>(0)
               <span>{{ f }}</span>
             </li>
           </ul>
-          <UiButton :to="localePath('/waitlist')" :variant="pick === i ? 'light' : 'ghost'" class="mt-10 w-full">{{ t('cta.join') }}</UiButton>
+          <StartButton :context="p.name" :variant="pick === i ? 'light' : 'ghost'" class="mt-10 w-full" />
         </li>
       </ul>
       <p class="mx-auto mt-6 max-w-7xl text-center text-sm text-muted">{{ t('pricing.priceNote') }}</p>

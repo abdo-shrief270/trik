@@ -44,8 +44,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       siteUrl: 'https://trik.chat',
-      // The waitlist endpoint of apps/api (POST {apiBase}/waitlist).
-      apiBase: 'http://localhost:8080/v1',
+      // Trik's business WhatsApp number for "Start on WhatsApp", digits with country code, no "+"
+      // (NUXT_PUBLIC_WHATSAPP_NUMBER at build time). Empty: the buttons go to How it works instead.
+      whatsappNumber: '',
     },
   },
 

@@ -34,7 +34,7 @@ usePageSeo('features', {
           </h1>
           <p v-reveal="300" class="mt-6 max-w-xl text-xl leading-relaxed text-muted">{{ t(`features.items.${feature}.sub`) }}</p>
           <div v-reveal="400" class="mt-10 flex flex-wrap gap-3">
-            <UiButton :to="localePath('/waitlist')" size="lg" magnetic arrow>{{ t('cta.join') }}</UiButton>
+            <StartButton :context="t(`features.items.${feature}.title`)" size="lg" magnetic arrow />
             <UiButton :to="localePath('/how-it-works')" variant="ghost" size="lg">{{ t('cta.seeHow') }}</UiButton>
           </div>
         </div>

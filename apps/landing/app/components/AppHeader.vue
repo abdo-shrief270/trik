@@ -72,9 +72,7 @@ const links = computed(() => [
           {{ t('nav.otherLanguage') }}
         </NuxtLink>
         <div class="hidden sm:block">
-          <UiButton :to="localePath('/waitlist')" :variant="onDark ? 'light' : 'primary'" magnetic>
-            {{ t('cta.join') }}
-          </UiButton>
+          <StartButton :variant="onDark ? 'light' : 'primary'" magnetic />
         </div>
         <button
           type="button"
@@ -104,7 +102,7 @@ const links = computed(() => [
             <NuxtLink :to="l.to" class="block border-b border-line py-5 font-display text-3xl font-bold">{{ l.label }}</NuxtLink>
           </li>
         </ul>
-        <UiButton :to="localePath('/waitlist')" size="lg" class="mt-8 w-full">{{ t('cta.join') }}</UiButton>
+        <StartButton size="lg" class="mt-8 w-full" />
       </div>
     </Transition>
   </header>

@@ -39,7 +39,7 @@ jobs:
           for p in index.html en/index.html features/index.html en/features/index.html \
                    features/confirmation/index.html features/risk/index.html features/inbox/index.html features/stores/index.html \
                    how-it-works/index.html en/how-it-works/index.html pricing/index.html en/pricing/index.html \
-                   waitlist/index.html en/waitlist/index.html 404.html; do
+                   404.html; do
             test -s ".output/public/$p" || { echo "missing $p"; exit 1; }
           done
           grep -q 'dir="rtl"' .output/public/index.html

@@ -14,11 +14,10 @@ pnpm generate     # static site in .output/public
 
 | Route | What |
 |---|---|
-| `/` | Home: live chat hero, order ticker, the problem, the pinned "road" (Chat → Profit), live confirmation board, refusal calculator, features, waitlist band |
+| `/` | Home: live chat hero, order ticker, the problem, the pinned "road" (Chat → Profit), live confirmation board, refusal calculator, features, call-to-action band |
 | `/features`, `/features/<slug>` | Overview and one page per feature (`confirmation`, `risk`, `inbox`, `stores`), each with its own animated visual |
 | `/how-it-works` | Four steps with a sticky panel that follows the step in view |
 | `/pricing` | Plan finder (orders a month → plan), plans, FAQ |
-| `/waitlist`, `/waitlist/check-email` | The waitlist form (double opt-in) and the "check your email" step |
 
 Every route exists in both languages (`/en/...`). Copy lives only in `i18n/locales/{ar,en}.json`; keep the two
 in step. Arabic uses the Egyptian voice of the brand book.
@@ -42,16 +41,22 @@ Tokens come from `packages/design-tokens`. Lime only marks a confirmed order (th
 and never sits on a light background. The tick mark sits left of the word in both languages. Arabic text uses
 IBM Plex Sans Arabic throughout. Fonts are self-hosted at build time (`@nuxt/fonts`).
 
-## Waitlist
+## Start on WhatsApp
 
-`POST {apiBase}/waitlist` with an `Idempotency-Key`, JSON body built by `utils/waitlist.ts#waitlistPayload`
-(phone normalised to E.164, Arabic digits accepted). A 422 problem+json `errors` map is shown per field.
-Set the API with `NUXT_PUBLIC_API_BASE` at build time. **The API endpoint itself is not built yet** (API part
-of #102): until it exists the form shows the network error.
+Every call to action (`StartButton`) and the footer's Contact link open a WhatsApp chat with Trik's business
+number, with a prefilled message in the visitor's language (plus the plan or feature, where there is one).
+Set the number at build time:
+
+```bash
+NUXT_PUBLIC_WHATSAPP_NUMBER=201012345678 pnpm generate   # digits, country code, no "+"
+```
+
+Without a valid number the buttons go to How it works, so they never lead nowhere. When the web app's sign-up
+is live, change `composables/useStart.ts` to point at it; every button follows.
 
 ## Placeholders to settle
 
 - Plan bundles in `utils/plans.ts` (300 / 1,500 / 5,000) and the team sizes in the plan copy are drafts until
-  pricing is set with the pilot sellers (#147, #148). Prices show "Pilot pricing".
-- Contact address in the footer: `hello@trik.chat`.
+  pricing is set (#147, #148). Prices show "Ask on WhatsApp".
+- No public email address yet: contact goes through WhatsApp.
 - Legal pages (#175), an Open Graph image (#176) and analytics (#177) are not in this app yet.

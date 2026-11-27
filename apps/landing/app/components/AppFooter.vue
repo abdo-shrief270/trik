@@ -2,6 +2,9 @@
 const { t } = useI18n()
 const localePath = useLocalePath()
 const year = new Date().getFullYear()
+// Contact is a WhatsApp chat too (no public email address yet).
+const { startLink } = useStart()
+const contact = computed(() => startLink())
 </script>
 
 <template>
@@ -28,8 +31,11 @@ const year = new Date().getFullYear()
           <h2 class="text-sm font-semibold text-dusk">{{ t('footer.company') }}</h2>
           <ul class="mt-4 space-y-3">
             <li><NuxtLink :to="localePath('/how-it-works')" class="text-mist transition-colors hover:text-white">{{ t('nav.howItWorks') }}</NuxtLink></li>
-            <li><NuxtLink :to="localePath('/waitlist')" class="text-mist transition-colors hover:text-white">{{ t('cta.join') }}</NuxtLink></li>
-            <li><a href="mailto:hello@trik.chat" class="text-mist transition-colors hover:text-white">{{ t('footer.contact') }}</a></li>
+            <li>
+              <NuxtLink :to="contact.to" :target="contact.external ? '_blank' : undefined" :rel="contact.external ? 'noopener' : undefined" class="text-mist transition-colors hover:text-white">
+                {{ t('footer.contact') }}
+              </NuxtLink>
+            </li>
           </ul>
         </div>
       </div>

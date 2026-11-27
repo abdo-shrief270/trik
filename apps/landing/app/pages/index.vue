@@ -37,7 +37,7 @@ const problems = computed(() => list<{ title: string; body: string }>('problem.i
           </h1>
           <p class="mt-8 max-w-xl animate-[word-up_1s_var(--ease-out-expo)_.7s_both] text-lg leading-relaxed text-mist sm:text-xl">{{ t('hero.sub') }}</p>
           <div class="mt-10 flex animate-[word-up_1s_var(--ease-out-expo)_.85s_both] flex-wrap gap-3">
-            <UiButton :to="localePath('/waitlist')" variant="light" size="lg" magnetic arrow>{{ t('cta.join') }}</UiButton>
+            <StartButton variant="light" size="lg" magnetic arrow />
             <UiButton :to="localePath('/how-it-works')" variant="ghost-dark" size="lg">{{ t('cta.seeHow') }}</UiButton>
           </div>
           <p class="mt-6 animate-[word-up_1s_var(--ease-out-expo)_1s_both] text-sm text-dusk">{{ t('hero.note') }}</p>

@@ -13,17 +13,17 @@
     "otherLanguage": "عربي"
   },
   "cta": {
-    "join": "Join the waitlist",
     "seeHow": "See how it works",
     "explore": "Explore the features",
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "start": "Start on WhatsApp"
   },
   "hero": {
     "eyebrow": "WhatsApp-first order operations · Egypt first",
     "line1": "Sent. Read.",
     "line2": "Trik'd.",
     "sub": "WhatsApp gives you two ticks. Trik adds the third: every cash-on-delivery order is confirmed with the customer in the chat before it ships.",
-    "note": "The pilot opens soon for 10–20 sellers."
+    "note": "Message us on WhatsApp: we set Trik up with you, on your own number."
   },
   "chat": {
     "name": "Mona Adel",
@@ -251,7 +251,7 @@
         "body": "New orders start confirming themselves. Your team works the board and the inbox."
       }
     ],
-    "setupHelp": "We set it up with you during the pilot."
+    "setupHelp": "We set it up with you, step by step, on WhatsApp."
   },
   "pricing": {
     "eyebrow": "Pricing",
@@ -260,8 +260,8 @@
     "finderLabel": "How many orders do you get a month?",
     "finderValue": "{n} orders a month",
     "recommended": "Fits you",
-    "priceSoon": "Pilot pricing",
-    "priceNote": "Prices are set with the first pilot sellers.",
+    "priceSoon": "Ask on WhatsApp",
+    "priceNote": "Launch prices are being finalised. Message us and we will send you yours.",
     "perMonth": "/ month",
     "bundle": "Up to {n} orders a month",
     "plans": [
@@ -315,46 +315,6 @@
       }
     ]
   },
-  "waitlist": {
-    "eyebrow": "The pilot",
-    "title": "Be one of the first sellers.",
-    "sub": "We're opening Trik to 10–20 sellers first, and setting it up with each of them.",
-    "name": "Your name",
-    "store": "Store or brand name",
-    "email": "Email",
-    "phone": "WhatsApp number",
-    "platform": "Where do you sell?",
-    "platforms": {
-      "whatsapp": "Only in the chat",
-      "shopify": "Shopify",
-      "easyorders": "EasyOrders",
-      "other": "Another store"
-    },
-    "orders": "Orders a month",
-    "ordersOptions": {
-      "s": "Under 300",
-      "m": "300 – 1,500",
-      "l": "1,500 – 5,000",
-      "xl": "More than 5,000"
-    },
-    "consent": "Email me about the pilot. You can unsubscribe at any time.",
-    "submit": "Join the waitlist",
-    "sending": "Sending…",
-    "errors": {
-      "required": "Fill this in.",
-      "email": "This email doesn't look right.",
-      "phone": "Use a full number with the country code, like +20 10 1234 5678.",
-      "consent": "Tick this so we can email you.",
-      "network": "We couldn't send that. Check your connection and try again.",
-      "server": "Something went wrong on our side. Try again in a minute."
-    },
-    "checkTitle": "Check your email.",
-    "checkBody": "We sent a link to {email}. Open it to confirm your place on the waitlist.",
-    "checkHint": "Nothing after a few minutes? Look in spam, or",
-    "checkRetry": "try again",
-    "compactPlaceholder": "Your email",
-    "compactHint": "We'll send a link to confirm."
-  },
   "notFound": {
     "title": "This page didn't get the third tick.",
     "body": "It may have moved, or never existed.",
@@ -385,10 +345,6 @@
     "pricing": {
       "title": "Pricing · Trik",
       "description": "Monthly plans in EGP with a bundle of orders. No charge per contact, conversation or message."
-    },
-    "waitlist": {
-      "title": "Join the waitlist · Trik",
-      "description": "Join the Trik pilot for sellers in Egypt."
     }
   },
   "visual": {
@@ -442,5 +398,14 @@
     "rule4": "Ask a deposit from risk",
     "rule4v": "60+",
     "live": "Live"
+  },
+  "whatsapp": {
+    "message": "Hi Trik, I sell online and I want to start confirming my orders on WhatsApp.",
+    "messageAbout": "Hi Trik, I sell online and I am interested in {topic}."
+  },
+  "ctaBand": {
+    "title": "Your orders, Trik'd.",
+    "sub": "Message us on WhatsApp and we will set Trik up with you, on the number your customers already know.",
+    "note": "A real person answers, in Arabic or English."
   }
 }
