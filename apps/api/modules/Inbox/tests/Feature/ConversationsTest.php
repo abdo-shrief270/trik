@@ -150,7 +150,10 @@ it('marks a conversation read and filters unread ones', function (): void {
     $id = inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations')->json('data.0.id');
 
     inboxAs($this->owner['headers'])->postJson("/v1/inbox/conversations/{$id}/read")->assertOk()->assertJsonPath('data.unread_count', 0);
-    expect(inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations?unread=1')->json('data'))->toHaveCount(1);
+    expect(inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations?unread=1')->json('data'))->toHaveCount(1)
+        ->and(inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations?unread=true')->json('data'))->toHaveCount(1)
+        ->and(inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations?unread=false')->json('data'))->toHaveCount(2);
+    inboxAs($this->owner['headers'])->getJson('/v1/inbox/conversations?unread=yes')->assertUnprocessable();
 });
 
 it('keeps conversations inside their workspace', function (): void {

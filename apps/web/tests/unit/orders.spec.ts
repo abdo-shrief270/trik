@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressBody, addressForm, addressLooksComplete, draftTotals, emptyAddress, itemsSummary, parsePounds, validateDraft } from '../../layers/orders/utils/orders'
+import { addressBody, addressForm, addressLooksComplete, draftTotals, emptyAddress, itemsSummary, missingAddressFields, parsePounds, validateDraft } from '../../layers/orders/utils/orders'
 
 describe('parsePounds', () => {
   it.each([
@@ -35,10 +35,11 @@ describe('address', () => {
     expect(addressBody({ ...f, area: '  ' })).toEqual({ raw: 'المعادي', governorate: 'C', area: null, street: 'شارع ٩', building: null, floor: null, apartment: null, landmark: null })
   })
 
-  it('knows when there is enough to deliver', () => {
+  it('knows when there is enough to deliver, by the API rule (governorate, area, street)', () => {
     expect(addressLooksComplete(emptyAddress())).toBe(false)
-    expect(addressLooksComplete({ ...emptyAddress(), governorate: 'C', street: 'شارع ٩' })).toBe(true)
-    expect(addressLooksComplete({ ...emptyAddress(), raw: 'المعادي، شارع ٩، عمارة ١٤' })).toBe(true)
+    expect(addressLooksComplete({ ...emptyAddress(), governorate: 'C', area: 'المعادي', street: 'شارع ٩' })).toBe(true)
+    expect(missingAddressFields({ ...emptyAddress(), governorate: 'GZ', area: 'الدقي' })).toEqual(['street'])
+    expect(missingAddressFields({ ...emptyAddress(), raw: 'المعادي، شارع ٩، عمارة ١٤', area: '  ' })).toEqual(['governorate', 'area', 'street'])
   })
 })
 

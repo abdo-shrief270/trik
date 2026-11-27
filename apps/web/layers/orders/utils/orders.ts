@@ -64,9 +64,14 @@ export function addressForm(a: Partial<Record<keyof AddressForm, string | null>>
   return f
 }
 
-/** Enough to deliver: a governorate and a street or area, or at least something written. */
+/** The fields the API's Address::isDeliverable() needs that are still empty (governorate, area, street). */
+export function missingAddressFields(a: AddressForm): ('governorate' | 'area' | 'street')[] {
+  return (['governorate', 'area', 'street'] as const).filter((k) => !a[k].trim())
+}
+
+/** Deliverable as the API sees it: governorate, area and street (PATCH /orders rejects less with address-incomplete). */
 export function addressLooksComplete(a: AddressForm): boolean {
-  return (!!a.governorate && !!(a.street.trim() || a.area.trim())) || a.raw.trim().length >= 10
+  return missingAddressFields(a).length === 0
 }
 
 /** "2 items: Linen dress, Cotton shirt" style summary for the list. */

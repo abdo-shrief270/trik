@@ -6,6 +6,7 @@ namespace Modules\Inbox\Http\Controllers;
 
 use App\Support\Http\CursorPage;
 use App\Support\Http\Problem;
+use App\Support\Http\QueryFlag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +28,7 @@ final class ConversationController
         $request->validate([
             'status' => ['sometimes', Rule::in(['open', 'closed', 'all'])],
             'assignee' => ['sometimes', 'string'],
-            'unread' => ['sometimes', 'boolean'],
+            'unread' => QueryFlag::rules(),
         ]);
 
         $status = $request->string('status', 'open')->toString();

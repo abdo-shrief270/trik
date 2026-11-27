@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { components } from '~/types/api'
-import { addressBody, addressForm, addressLooksComplete, type AddressForm } from '../../utils/orders'
+import { addressBody, addressForm, addressLooksComplete, missingAddressFields, type AddressForm } from '../../utils/orders'
 import { formatMoney, orderTone } from '../../../inbox/utils/inbox'
 
 type Order = components['schemas']['Order']
@@ -13,7 +13,7 @@ const { can } = usePermissions()
 const governorates = useGovernorates()
 const id = computed(() => String(route.params.id))
 
-const { data: order, status, error, refresh } = useAsyncData(
+const { data: order, status, error } = useAsyncData(
   () => `order:${id.value}`,
   async () => (await call(useApi().GET('/orders/{order}', { params: { ...inWorkspace(), path: { order: id.value } } }))).data ?? null,
   { watch: [id, () => session.workspaceId] },
@@ -32,6 +32,19 @@ const { data: members } = useAsyncData(
   { default: () => [] },
 )
 
+// 404 (wrong id, or another workspace's order) reads as "not found"; anything else says what went wrong.
+const loadError = computed(() => {
+  const e: unknown = error.value?.cause ?? error.value
+  return e instanceof ApiError && e.problem.status !== 404 ? t(problemMessageKey(e.problem)) : ''
+})
+// "22:43" today, "Tue · 22:43" before (shortTime is already the time for today).
+const placedAt = computed(() => {
+  const iso = order.value?.placed_at
+  if (!iso) return ''
+  const short = shortTime(iso, locale.value)
+  const clock = clockTime(iso, locale.value)
+  return short === clock ? clock : `${short} · ${clock}`
+})
 const canUpdate = computed(() => can('orders.orders.update'))
 const canConfirm = computed(() => can('orders.orders.confirm'))
 const isOpen = computed(() => !!order.value && ['new', 'confirming', 'awaiting_deposit'].includes(order.value.status))
@@ -45,7 +58,7 @@ function explain(e: unknown) {
 }
 
 /** PATCH /orders/{order} and show the result. */
-async function patch(body: components['schemas']['Address'] extends never ? never : Record<string, unknown>, done: string) {
+async function patch(body: Record<string, unknown>, done: string) {
   try {
     const res = await call(useApi().PATCH('/orders/{order}', { params: { ...inWorkspace(), path: { order: id.value } }, body }))
     if (res.data) order.value = res.data
@@ -64,9 +77,15 @@ const address = ref<AddressForm>(addressForm(null))
 const savingAddress = ref(false)
 function startEdit() {
   address.value = addressForm(order.value?.address)
+  addressTried.value = false
   editing.value = true
 }
+const addressTried = ref(false)
+const missing = computed(() => (addressTried.value ? missingAddressFields(address.value) : []))
 async function saveAddress() {
+  // The API only takes a deliverable address (governorate, area, street): say what's missing before sending.
+  addressTried.value = true
+  if (missing.value.length) return
   savingAddress.value = true
   // A fixed, complete address clears the "needs fix" flag (the API records address_fixed).
   const body: Record<string, unknown> = { address: addressBody(address.value) }
@@ -77,8 +96,10 @@ async function saveAddress() {
 const addressLines = computed(() => {
   const a = order.value?.address
   if (!a) return []
+  // The API's `line` is the whole address for people (street … area, governorate — landmark): show it alone.
+  if (a.line) return [a.line]
   return [
-    a.line || [a.street, a.building && `${t('order.building')} ${a.building}`, a.floor && `${t('order.floor')} ${a.floor}`, a.apartment && `${t('orders.apartment')} ${a.apartment}`].filter(Boolean).join('، '),
+    [a.street, a.building && `${t('order.building')} ${a.building}`, a.floor && `${t('order.floor')} ${a.floor}`, a.apartment && `${t('orders.apartment')} ${a.apartment}`].filter(Boolean).join('، '),
     [a.area, governorates.nameOf(a.governorate)].filter(Boolean).join('، '),
     a.landmark ? `${t('orders.landmark')}: ${a.landmark}` : '',
   ].filter(Boolean)
@@ -131,7 +152,7 @@ async function act(action: 'confirm' | 'cancel') {
     <NuxtLink to="/orders" class="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo"><UiIcon name="chevronRight" :size="16" class="rotate-180 rtl:rotate-0" />{{ t('nav.orders') }}</NuxtLink>
 
     <UiSkeleton v-if="status === 'pending' && !order" class="mt-6 h-64 w-full" />
-    <UiEmptyState v-else-if="error || !order" icon="orders" :title="t('orders.notFound')" :body="error ? t(problemMessageKey((error as ApiError).problem ?? { status: 0, code: 'network' })) : ''">
+    <UiEmptyState v-else-if="error || !order" icon="orders" :title="t('orders.notFound')" :body="loadError">
       <UiButton to="/orders" variant="secondary" size="sm">{{ t('orders.back') }}</UiButton>
     </UiEmptyState>
 
@@ -140,7 +161,7 @@ async function act(action: 'confirm' | 'cancel') {
       <header class="mt-4 flex flex-wrap items-center gap-3">
         <h1 class="font-display text-4xl font-bold tracking-[-0.03em]" dir="ltr">#{{ order.number }}</h1>
         <UiBadge :tone="orderTone(order.status)"><BrandMark v-if="order.status === 'confirmed'" tone="ink" :size="18" />{{ t(`order.status.${order.status}`) }}</UiBadge>
-        <span class="text-muted">{{ t(`board.source.${order.source ?? 'chat'}`) }} · {{ shortTime(order.placed_at, locale) }} {{ clockTime(order.placed_at, locale) }}</span>
+        <span class="text-muted">{{ t(`board.source.${order.source ?? 'chat'}`) }} · {{ placedAt }}</span>
         <span class="flex-1" />
         <template v-if="canConfirm && isOpen">
           <UiButton :loading="busy === 'confirm'" :disabled="!!busy" @click="act('confirm')"><UiIcon name="check" :size="18" />{{ t('order.confirm') }}</UiButton>
@@ -161,7 +182,7 @@ async function act(action: 'confirm' | 'cancel') {
               <thead><tr class="border-y border-line text-[13px] text-muted"><th scope="col" class="px-6 py-2.5 text-start font-medium">{{ t('orders.item') }}</th><th scope="col" class="px-3 py-2.5 text-end font-medium">{{ t('orders.qty') }}</th><th scope="col" class="px-3 py-2.5 text-end font-medium">{{ t('orders.price') }}</th><th scope="col" class="px-6 py-2.5 text-end font-medium">{{ t('order.total') }}</th></tr></thead>
               <tbody>
                 <tr v-for="(i, n) in order.items" :key="n" class="border-b border-line">
-                  <td class="px-6 py-3"><div class="font-medium" dir="auto">{{ i.title }}</div><div v-if="i.variant || i.sku" class="text-[13px] text-muted">{{ [i.variant, i.sku].filter(Boolean).join(' · ') }}</div></td>
+                  <td class="px-6 py-3"><div class="font-medium"><bdi>{{ i.title }}</bdi></div><div v-if="i.variant || i.sku" class="text-[13px] text-muted"><bdi>{{ [i.variant, i.sku].filter(Boolean).join(' · ') }}</bdi></div></td>
                   <td class="px-3 py-3 text-end tabular-nums">{{ i.quantity }}</td>
                   <td class="px-3 py-3 text-end tabular-nums" dir="ltr">{{ money(i.unit_price) }}</td>
                   <td class="px-6 py-3 text-end font-medium tabular-nums" dir="ltr">{{ money(i.total) }}</td>
@@ -178,7 +199,7 @@ async function act(action: 'confirm' | 'cancel') {
           </section>
 
           <!-- Note -->
-          <section class="rounded-2xl border border-line bg-white p-6" :aria-label="t('orders.note')">
+          <section class="rounded-2xl border border-line bg-white p-6">
             <label for="order-note" class="text-lg font-bold">{{ t('orders.note') }}</label>
             <p class="mt-1 text-sm text-muted">{{ t('orders.noteHint') }}</p>
             <textarea id="order-note" v-model="note" rows="3" maxlength="2000" dir="auto" :disabled="!canUpdate" class="mt-3 w-full rounded-lg border border-line px-3.5 py-2.5 text-[15px] outline-none focus:border-indigo disabled:bg-paper" />
@@ -194,7 +215,7 @@ async function act(action: 'confirm' | 'cancel') {
             <div class="flex items-center gap-3">
               <UiAvatar :id="order.contact_id" :name="order.customer?.name || '?'" size="lg" />
               <div class="min-w-0">
-                <p class="truncate text-lg font-bold" dir="auto">{{ order.customer?.name || formatPhone(order.customer?.phone) }}</p>
+                <p class="truncate text-lg font-bold"><bdi>{{ order.customer?.name || formatPhone(order.customer?.phone) }}</bdi></p>
                 <p class="text-sm text-muted" dir="ltr">{{ formatPhone(order.customer?.phone) }}</p>
               </div>
             </div>
@@ -209,11 +230,11 @@ async function act(action: 'confirm' | 'cancel') {
               <UiBadge v-else-if="order.address?.fixed_at" tone="success">{{ t('orders.fixed') }}</UiBadge>
             </div>
 
-            <form v-if="editing" class="mt-4 space-y-3" @submit.prevent="saveAddress">
+            <form v-if="editing" class="mt-4 space-y-3" novalidate @submit.prevent="saveAddress">
               <UiSelect v-model="address.governorate" :label="t('board.governorate')" :options="[{ value: '', label: t('orders.chooseGovernorate') }, ...governorates.options.value]" />
               <div class="grid grid-cols-2 gap-3">
-                <UiInput v-model="address.area" :label="t('orders.area')" />
-                <UiInput v-model="address.street" :label="t('orders.street')" />
+                <UiInput v-model="address.area" dir="auto" required :label="t('orders.area')" :error="missing.includes('area') ? t('create.err.required') : undefined" />
+                <UiInput v-model="address.street" dir="auto" required :label="t('orders.street')" :error="missing.includes('street') ? t('create.err.required') : undefined" />
               </div>
               <div class="grid grid-cols-3 gap-3">
                 <UiInput v-model="address.building" :label="t('order.building')" />
@@ -221,7 +242,8 @@ async function act(action: 'confirm' | 'cancel') {
                 <UiInput v-model="address.apartment" :label="t('orders.apartment')" />
               </div>
               <UiInput v-model="address.landmark" :label="t('orders.landmark')" />
-              <UiInput v-model="address.raw" :label="t('orders.raw')" :hint="t('orders.rawHint')" />
+              <UiInput v-model="address.raw" dir="auto" :label="t('orders.raw')" :hint="t('orders.rawHint')" />
+              <p v-if="missing.length" role="alert" class="text-sm text-danger">{{ t('orders.addressNeeds') }}</p>
               <div class="flex justify-end gap-2 pt-1">
                 <UiButton variant="ghost" size="sm" @click="editing = false">{{ t('orders.discard') }}</UiButton>
                 <UiButton type="submit" size="sm" :loading="savingAddress">{{ t('orders.saveAddress') }}</UiButton>
@@ -229,10 +251,10 @@ async function act(action: 'confirm' | 'cancel') {
             </form>
             <template v-else>
               <div v-if="addressLines.length" class="mt-3 space-y-0.5 text-[15px]">
-                <p v-for="(l, i) in addressLines" :key="i" :class="i ? 'text-muted' : ''" dir="auto">{{ l }}</p>
+                <p v-for="(l, i) in addressLines" :key="i" :class="i ? 'text-muted' : ''"><bdi>{{ l }}</bdi></p>
               </div>
               <p v-else class="mt-3 text-muted">{{ t('orders.noAddress') }}</p>
-              <p v-if="order.address?.raw && order.address?.line" class="mt-3 rounded-lg bg-paper px-3 py-2 text-sm text-muted" dir="auto">{{ t('orders.asWritten') }}: {{ order.address.raw }}</p>
+              <p v-if="order.address?.raw && order.address?.line" class="mt-3 rounded-lg bg-paper px-3 py-2 text-sm text-muted">{{ t('orders.asWritten') }}: <bdi>{{ order.address.raw }}</bdi></p>
               <div v-if="canUpdate" class="mt-4 flex flex-wrap gap-2">
                 <UiButton size="sm" variant="secondary" @click="startEdit"><UiIcon name="rules" :size="15" />{{ t('orders.editAddress') }}</UiButton>
                 <UiButton v-if="!order.address?.needs_fix" size="sm" variant="ghost" @click="patch({ address_needs_fix: true }, t('orders.flagged'))">{{ t('orders.flag') }}</UiButton>

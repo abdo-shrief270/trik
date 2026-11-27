@@ -298,12 +298,6 @@
       "order-changed": "Someone changed this order at the same time. Refresh and try again."
     }
   },
-  "placeholder": {
-    "orders": {
-      "title": "Orders arrive here",
-      "body": "The orders list comes in an upcoming update."
-    }
-  },
   "board": {
     "queue": "Queue",
     "filters": "Filters",
@@ -440,7 +434,8 @@
       "address_flagged": "Address flagged to fix",
       "address_unflagged": "Address flag cleared",
       "note_changed": "Note changed",
-      "other": "Updated"
+      "other": "Updated",
+      "owner_changed": "Owner changed"
     }
   },
   "rules": {
@@ -475,6 +470,86 @@
     "noNumber": {
       "title": "Connect a WhatsApp number first",
       "body": "Confirmation messages go out from one of your numbers."
+    }
+  },
+  "orders": {
+    "status": "Status",
+    "all": "All orders",
+    "needsFix": "Address needs fixing",
+    "new": "New order",
+    "items": "Items",
+    "statusCol": "Status",
+    "placed": "Placed",
+    "pieces": "one piece | {n} pieces",
+    "fixAddress": "Fix address",
+    "openPage": "Open the order page",
+    "empty": {
+      "title": "No orders yet",
+      "body": "Orders from your store, chats and calls show here.",
+      "filtered": "No orders match this filter."
+    },
+    "errors": {
+      "owner-cannot-view": "That teammate can't see orders, so they can't own this one.",
+      "address-incomplete": "A delivery address needs the governorate, the area and the street."
+    },
+    "notFound": "We couldn't find this order",
+    "back": "Back to orders",
+    "fixBanner": "The address needs fixing before this order can be confirmed. Edit it below.",
+    "item": "Item",
+    "qty": "Qty",
+    "price": "Price",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "discount": "Discount",
+    "note": "Note",
+    "noteHint": "Only your team sees it.",
+    "saveNote": "Save note",
+    "noteSaved": "Note saved.",
+    "owner": "Owner",
+    "ownerSet": "Owner changed.",
+    "ownerCleared": "Nobody owns this order now.",
+    "fixed": "Address fixed",
+    "chooseGovernorate": "Choose a governorate…",
+    "area": "Area",
+    "street": "Street",
+    "apartment": "Apartment",
+    "landmark": "Landmark",
+    "raw": "As written",
+    "rawHint": "What the customer or the store wrote, kept for reference.",
+    "discard": "Discard",
+    "saveAddress": "Save address",
+    "addressSaved": "Address saved.",
+    "noAddress": "No address yet.",
+    "asWritten": "As written",
+    "editAddress": "Edit address",
+    "flag": "Flag to fix",
+    "flagged": "Address flagged to fix.",
+    "unflag": "Clear the flag",
+    "unflagged": "Address flag cleared.",
+    "addressNeeds": "The address needs the governorate, the area and the street."
+  },
+  "create": {
+    "title": "New order",
+    "sub": "For an order taken on a call or in a chat. It joins the confirmation board like any other.",
+    "denied": "Your role can't create orders.",
+    "phone": "Customer phone",
+    "phoneHint": "With the country code, e.g. 201012345678.",
+    "name": "Customer name",
+    "variant": "Size or colour",
+    "unitPrice": "Price, EGP",
+    "removeItem": "Remove item {n}",
+    "addItem": "Add an item",
+    "optional": "(optional)",
+    "addressLater": "You can add the address later; the order will need it before confirming.",
+    "payment": "Payment",
+    "fixErrors": "Fix the highlighted fields.",
+    "submit": "Create the order",
+    "done": "Order #{n} created.",
+    "err": {
+      "required": "Required.",
+      "phone": "Enter a valid phone number.",
+      "quantity": "A whole number, 1 or more.",
+      "money": "Enter an amount, e.g. 1,250."
     }
   }
 }

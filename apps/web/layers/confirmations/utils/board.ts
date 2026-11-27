@@ -115,6 +115,7 @@ export function eventView(e: { type?: string; data?: Record<string, unknown> | n
     case 'address_flagged':
     case 'address_unflagged':
     case 'note_changed':
+    case 'owner_changed':
       return { key: `board.event.${e.type}`, params: {} }
     default:
       return { key: 'board.event.other', params: {} }

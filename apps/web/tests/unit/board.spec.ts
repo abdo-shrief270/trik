@@ -46,6 +46,10 @@ describe('bulk', () => {
   })
 })
 
+describe('eventView owner', () => {
+  it('names an owner change', () => expect(eventView({ type: 'owner_changed', data: { to: 'x' } }).key).toBe('board.event.owner_changed'))
+})
+
 describe('eventView', () => {
   it('labels timeline events', () => {
     expect(eventView({ type: 'status_changed', data: { from: 'new', to: 'confirmed' } })).toEqual({ key: 'board.event.status_changed', params: { from: 'new', to: 'confirmed' } })

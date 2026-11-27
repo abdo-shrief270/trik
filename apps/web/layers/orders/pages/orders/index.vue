@@ -117,12 +117,12 @@ const placed = (iso?: string) => (iso ? `${shortTime(iso, locale.value)}` : '')
                     <div class="text-[13px] text-muted">{{ t(`board.source.${o.source ?? 'chat'}`) }}</div>
                   </td>
                   <td class="px-3 py-3">
-                    <div class="font-medium" dir="auto">{{ o.customer?.name || formatPhone(o.customer?.phone) }}</div>
-                    <div class="text-[13px] text-muted" dir="auto">{{ governorates.nameOf(o.address?.governorate) ?? o.address?.area ?? '' }}</div>
+                    <div class="font-medium"><bdi>{{ o.customer?.name || formatPhone(o.customer?.phone) }}</bdi></div>
+                    <div class="text-[13px] text-muted"><bdi>{{ governorates.nameOf(o.address?.governorate) ?? o.address?.area ?? '' }}</bdi></div>
                   </td>
                   <td class="max-w-[16rem] px-3 py-3">
-                    <div class="truncate" dir="auto">{{ itemsSummary(o.items).titles.join('، ') }}<template v-if="itemsSummary(o.items).more"> +{{ itemsSummary(o.items).more }}</template></div>
-                    <div class="text-[13px] text-muted">{{ t('orders.pieces', { n: itemsSummary(o.items).count }) }}</div>
+                    <div class="truncate"><bdi>{{ itemsSummary(o.items).titles.join('، ') }}</bdi><template v-if="itemsSummary(o.items).more"> +{{ itemsSummary(o.items).more }}</template></div>
+                    <div class="text-[13px] text-muted">{{ t('orders.pieces', { n: itemsSummary(o.items).count }, itemsSummary(o.items).count) }}</div>
                   </td>
                   <td class="px-3 py-3 text-end font-medium tabular-nums" dir="ltr">{{ formatMoney(o.total, locale) }}</td>
                   <td class="px-3 py-3">
