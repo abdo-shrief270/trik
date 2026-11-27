@@ -1,0 +1,27 @@
+# Copy to vault.yml, fill in, then: ansible-vault encrypt vault.yml   (vault.yml is git-ignored)
+# Generate secrets with: openssl rand -base64 36 | tr -d '/+=' | cut -c1-40
+
+# GitHub Container Registry, read-only token (fine-grained PAT, "packages: read") to pull the images.
+ghcr_user: ""
+ghcr_token: ""
+image_repo: ghcr.io/<github-owner>
+
+postgres_superuser_password: ""
+db_owner_password: ""
+db_api_password: ""
+redis_password: ""
+centrifugo_api_key: ""
+centrifugo_token_hmac_secret: ""
+
+# Laravel
+app_key: ""                     # php artisan key:generate --show
+meta_app_secret: ""
+meta_webhook_verify_token: ""
+
+# Cloudflare Origin Certificate for trik.chat and *.trik.chat (Cloudflare → SSL/TLS → Origin Server).
+origin_cert_pem: |
+  -----BEGIN CERTIFICATE-----
+  -----END CERTIFICATE-----
+origin_cert_key: |
+  -----BEGIN PRIVATE KEY-----
+  -----END PRIVATE KEY-----

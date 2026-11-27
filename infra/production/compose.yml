@@ -1,0 +1,161 @@
+# Trik production on one server (pilot, ADR 0011). Lives at /srv/trik on the server with its .env
+# (see .env.example here). Deploy with ./deploy.sh <image-tag>; never edit containers by hand.
+#
+# Not here yet (ADR 0010 scale path): Redpanda, ClickHouse, Meilisearch, the Go services. Add them when the
+# code uses them.
+name: trik
+
+x-app: &app
+  image: ${IMAGE_REPO}/trik-api:${IMAGE_TAG}
+  restart: unless-stopped
+  env_file: [app.env]
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  networks: [backend]
+  logging: &logging
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+# The owner role (migrations, scheduler maintenance) is given only to the services that need it.
+x-owner-env: &owner-env
+  DB_OWNER_USERNAME: trik_owner
+  DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?set DB_OWNER_PASSWORD in .env}
+
+services:
+  postgres:
+    image: postgres:19-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trik
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD in .env}
+      # Read once by postgres/10-roles.sh on first start.
+      TRIK_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      TRIK_API_PASSWORD: ${DB_API_PASSWORD:?set DB_API_PASSWORD in .env}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-3GB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-8GB}
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_connections=300
+      - -c
+      - timezone=UTC
+      - -c
+      - log_min_duration_statement=500ms
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ../docker/postgres/init/01-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
+      - ../postgres/roles.sql:/trik/roles.sql:ro
+      - ./postgres/10-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trik"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy: { resources: { limits: { memory: "${PG_MEMORY:-6g}" } } }
+    networks: [backend]
+    logging: *logging
+
+  # One Redis for the pilot: queues, cache, locks and rate limits. noeviction, because losing queued jobs or
+  # locks is worse than a full cache; cache keys carry TTLs. Split per ADR 0010 when load needs it.
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-1536mb}", "--maxmemory-policy", "noeviction", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    deploy: { resources: { limits: { memory: 2g } } }
+    networks: [backend]
+    logging: *logging
+
+  api:
+    <<: *app
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/healthz') === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    deploy: { resources: { limits: { memory: "${API_MEMORY:-2g}" } } }
+
+  worker:
+    <<: *app
+    command: ["php", "artisan", "queue:work", "redis", "--queue=default", "--sleep=1", "--tries=3", "--max-time=3600", "--memory=256"]
+    healthcheck: { disable: true }
+    deploy:
+      replicas: ${WORKER_REPLICAS:-2}
+      resources: { limits: { memory: 512m } }
+
+  # Runs the Laravel schedule (whatsapp:maintain and whatsapp:sweep need the owner role, see docs/runbooks/database-roles.md).
+  scheduler:
+    <<: *app
+    command: ["php", "artisan", "schedule:work"]
+    environment: *owner-env
+    healthcheck: { disable: true }
+    deploy: { resources: { limits: { memory: 512m } } }
+
+  # One-off: `docker compose run --rm migrate` (deploy.sh does it before switching versions).
+  migrate:
+    <<: *app
+    command: ["php", "artisan", "migrate", "--database=owner", "--force", "--no-interaction"]
+    environment: *owner-env
+    restart: "no"
+    healthcheck: { disable: true }
+    profiles: [tools]
+
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    restart: unless-stopped
+    command: ["centrifugo", "--config=/centrifugo/config.json"]
+    environment:
+      CENTRIFUGO_HTTP_API_KEY: ${CENTRIFUGO_API_KEY:?set CENTRIFUGO_API_KEY in .env}
+      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: ${CENTRIFUGO_TOKEN_HMAC_SECRET:?set CENTRIFUGO_TOKEN_HMAC_SECRET in .env}
+    volumes: [./centrifugo.json:/centrifugo/config.json:ro]
+    deploy: { resources: { limits: { memory: 512m } } }
+    networks: [backend]
+    logging: *logging
+
+  # The only container with public ports. The firewall lets only Cloudflare reach them.
+  edge:
+    image: ${IMAGE_REPO}/trik-edge:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      LANDING_DOMAIN: ${LANDING_DOMAIN:-trik.chat}
+      API_DOMAIN: ${API_DOMAIN:-api.trik.chat}
+    ports:
+      - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-443}:443"
+    volumes:
+      - ./certs:/certs:ro
+      - caddy_data:/data
+    depends_on: [api, centrifugo]
+    deploy: { resources: { limits: { memory: 256m } } }
+    networks:
+      backend:
+        ipv4_address: 172.30.0.10
+    logging: *logging
+
+networks:
+  backend:
+    ipam:
+      config:
+        # Fixed so the API can trust exactly the edge as its proxy (TRUSTED_PROXIES=172.30.0.10).
+        - subnet: 172.30.0.0/24
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:

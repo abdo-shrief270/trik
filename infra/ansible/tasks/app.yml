@@ -1,0 +1,90 @@
+# {{ app_dir }} mirrors the repo paths compose.yml refers to (infra/production, infra/docker, infra/postgres).
+- name: App directories
+  ansible.builtin.file:
+    path: "{{ app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+  loop: [bin, infra/production, infra/production/postgres, infra/production/certs, infra/docker/postgres/init, infra/postgres]
+
+- name: Production files from the repo
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item.src }}"
+    dest: "{{ app_dir }}/{{ item.src }}"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: production/compose.yml, mode: "0640" }
+    - { src: production/centrifugo.json, mode: "0640" }
+    - { src: production/deploy.sh, mode: "0750" }
+    - { src: production/postgres/10-roles.sh, mode: "0755" }
+    - { src: docker/postgres/init/01-extensions.sql, mode: "0644" }
+    - { src: postgres/roles.sql, mode: "0644" }
+  loop_control: { label: "{{ item.src }}" }
+
+# deploy.sh owns IMAGE_TAG: read it so re-running Ansible never rolls the release back.
+- name: Read the live image tag
+  ansible.builtin.slurp: { src: "{{ app_dir }}/infra/production/.env" }
+  register: live_env
+  failed_when: false
+
+- name: Compose environment (.env), keeping the live image tag
+  ansible.builtin.template:
+    src: templates/env.j2
+    dest: "{{ app_dir }}/infra/production/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  vars:
+    image_tag: >-
+      {{ ((live_env.content | default('') | b64decode) | regex_search('(?m)^IMAGE_TAG=(\S+)$', '\1') | default(['latest'], true) | first) }}
+
+- name: Laravel environment (app.env)
+  ansible.builtin.template:
+    src: templates/app.env.j2
+    dest: "{{ app_dir }}/infra/production/app.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+- name: Cloudflare origin certificate
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ app_dir }}/infra/production/certs/{{ item.name }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { name: origin.pem, content: "{{ origin_cert_pem }}", mode: "0644" }
+    - { name: origin.key, content: "{{ origin_cert_key }}", mode: "0600" }
+  loop_control: { label: "{{ item.name }}" }
+  no_log: true
+
+- name: The only command the CI key may run
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/bin/ci-deploy"
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/usr/bin/env bash
+      # Forced command for the CI deploy key (authorized_keys). Accepts exactly "deploy <tag>".
+      set -euo pipefail
+      read -r verb tag extra <<< "${SSH_ORIGINAL_COMMAND:-}"
+      if [[ "$verb" != deploy || -z "${tag:-}" || -n "${extra:-}" || ! "$tag" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+        echo "usage: deploy <image-tag>" >&2
+        exit 2
+      fi
+      exec {{ app_dir }}/infra/production/deploy.sh "$tag"
+
+- name: Log in to the container registry (read-only token)
+  ansible.builtin.shell: >
+    set -o pipefail && printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+  args: { executable: /bin/bash }
+  environment: { GHCR_TOKEN: "{{ ghcr_token }}", GHCR_USER: "{{ ghcr_user }}" }
+  become: true
+  become_user: "{{ deploy_user }}"
+  changed_when: false
+  no_log: true

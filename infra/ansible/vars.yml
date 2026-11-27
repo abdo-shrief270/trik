@@ -1,0 +1,22 @@
+# Non-secret settings. Secrets go in vault.yml (ansible-vault encrypted, never committed: see vault.example.yml).
+
+deploy_user: deploy
+
+# Public keys with full shell access as the deploy user (yours; the server you administer from).
+deploy_ssh_keys: []
+
+# The CI deploy key (public half of the DEPLOY_SSH_KEY secret). It is locked to a forced command: it can only
+# run `deploy.sh <tag>`, no shell, no forwarding. If it leaks, the worst case is redeploying an image we built.
+ci_deploy_key: ""
+
+# Who may reach SSH. Empty = any address (keys only, root login off, fail2ban), needed for GitHub-hosted
+# runners whose IPs change. Set your own IPs here if you deploy only from a fixed address or a self-hosted runner.
+ssh_allow_from: []
+
+swap_size_mb: 4096
+app_dir: /srv/trik
+
+# Cloudflare's ranges are fetched live on every run (the same list as infra/edge/cloudflare-ips.caddy).
+cloudflare_ips_urls:
+  - https://www.cloudflare.com/ips-v4
+  - https://www.cloudflare.com/ips-v6

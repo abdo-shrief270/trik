@@ -1,0 +1,48 @@
+- name: Upgrade packages
+  ansible.builtin.apt: { update_cache: true, upgrade: safe, cache_valid_time: 3600 }
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg, ufw, fail2ban, unattended-upgrades, apt-listchanges, jq, rsync]
+    state: present
+
+- name: Automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+- name: Server clock in UTC (the app and PostgreSQL assume UTC)
+  community.general.timezone: { name: Etc/UTC }
+
+- name: Check for swap
+  ansible.builtin.command: swapon --show --noheadings
+  register: swap_on
+  changed_when: false
+
+- name: Create a swap file
+  when: swap_on.stdout == ""
+  block:
+    - name: Allocate swap
+      ansible.builtin.command: "fallocate -l {{ swap_size_mb }}M /swapfile"
+      args: { creates: /swapfile }
+    - name: Swap permissions
+      ansible.builtin.file: { path: /swapfile, mode: "0600" }
+    - name: Format and enable swap
+      ansible.builtin.shell: mkswap /swapfile && swapon /swapfile
+      changed_when: true
+    - name: Swap on boot
+      ansible.builtin.lineinfile: { path: /etc/fstab, line: "/swapfile none swap sw 0 0" }
+
+- name: Kernel settings (Redis wants overcommit; prefer RAM over swap)
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-trik.conf
+  loop:
+    - { key: vm.overcommit_memory, value: "1" }
+    - { key: vm.swappiness, value: "10" }
+    - { key: net.core.somaxconn, value: "4096" }

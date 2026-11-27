@@ -51,3 +51,9 @@ Claude outputs/
 
 # Redis snapshots from local runs
 dump.rdb
+
+# Production secrets (written on the server by Ansible; never in the repo)
+infra/ansible/vault.yml
+infra/ansible/inventory.ini
+infra/production/app.env
+infra/production/certs/

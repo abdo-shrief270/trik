@@ -1,0 +1,50 @@
+- name: Deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Deploy user's keys (full access) and the CI key (forced to the deploy command only)
+  ansible.builtin.copy:
+    dest: "/home/{{ deploy_user }}/.ssh/authorized_keys"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+    content: |
+      {% for key in deploy_ssh_keys %}
+      {{ key }}
+      {% endfor %}
+      {% if ci_deploy_key %}
+      command="{{ app_dir }}/bin/ci-deploy",restrict {{ ci_deploy_key }}
+      {% endif %}
+
+- name: SSH directory permissions
+  ansible.builtin.file: { path: "/home/{{ deploy_user }}/.ssh", state: directory, owner: "{{ deploy_user }}", mode: "0700" }
+
+- name: Harden sshd (keys only, no root, only the deploy user)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-trik.conf
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PubkeyAuthentication yes
+      AllowUsers {{ deploy_user }}
+      X11Forwarding no
+      MaxAuthTries 3
+      LoginGraceTime 30
+  notify: Restart ssh
+
+- name: Ban repeated SSH failures
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    mode: "0644"
+    content: |
+      [sshd]
+      enabled = true
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+  notify: Restart fail2ban

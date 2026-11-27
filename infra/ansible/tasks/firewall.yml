@@ -1,0 +1,72 @@
+# ufw: deny in, SSH as configured, HTTPS only from Cloudflare.
+#
+# Docker publishes ports through its own iptables chains, which skip ufw's INPUT rules. The DOCKER-USER block
+# below (the ufw-docker method) sends forwarded traffic through ufw's route rules, so `ufw route allow` decides
+# who reaches the edge container. Without it, port 443 would be open to the whole internet.
+
+- name: Fetch Cloudflare's current ranges
+  ansible.builtin.uri: { url: "{{ item }}", return_content: true }
+  loop: "{{ cloudflare_ips_urls }}"
+  register: cf
+  check_mode: false
+
+- name: Cloudflare ranges
+  ansible.builtin.set_fact:
+    cloudflare_ranges: "{{ cf.results | map(attribute='content') | map('split') | flatten | select | list }}"
+
+- name: Refuse an empty Cloudflare list (would leave HTTPS closed or open wrongly)
+  ansible.builtin.assert: { that: cloudflare_ranges | length > 10 }
+
+- name: Route Docker's published ports through ufw (DOCKER-USER)
+  ansible.builtin.blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} TRIK DOCKER-USER"
+    block: |
+      *filter
+      :ufw-user-forward - [0:0]
+      :ufw-docker-logging-deny - [0:0]
+      :DOCKER-USER - [0:0]
+      -A DOCKER-USER -j ufw-user-forward
+      -A DOCKER-USER -j RETURN -s 10.0.0.0/8
+      -A DOCKER-USER -j RETURN -s 172.16.0.0/12
+      -A DOCKER-USER -j RETURN -s 192.168.0.0/16
+      -A DOCKER-USER -p udp -m udp --sport 53 --dport 1024:65535 -j RETURN
+      -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 192.168.0.0/16
+      -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 10.0.0.0/8
+      -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 172.16.0.0/12
+      -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 192.168.0.0/16
+      -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 10.0.0.0/8
+      -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 172.16.0.0/12
+      -A DOCKER-USER -j RETURN
+      -A ufw-docker-logging-deny -m limit --limit 3/min --limit-burst 10 -j LOG --log-prefix "[UFW DOCKER BLOCK] "
+      -A ufw-docker-logging-deny -j DROP
+      COMMIT
+  notify: Reload ufw
+
+- name: Deny incoming by default
+  community.general.ufw: { direction: incoming, policy: deny }
+
+- name: Allow outgoing by default
+  community.general.ufw: { direction: outgoing, policy: allow }
+
+- name: Deny routed by default (Docker's published ports are allowed per rule below)
+  community.general.ufw: { direction: routed, policy: deny }
+
+- name: SSH from the allowed addresses
+  community.general.ufw: { rule: allow, port: "22", proto: tcp, from_ip: "{{ item }}" }
+  loop: "{{ ssh_allow_from }}"
+
+- name: SSH from anywhere (keys only) when no addresses are set
+  community.general.ufw: { rule: limit, port: "22", proto: tcp }
+  when: ssh_allow_from | length == 0
+
+- name: HTTPS to the host only from Cloudflare
+  community.general.ufw: { rule: allow, port: "443", proto: tcp, from_ip: "{{ item }}" }
+  loop: "{{ cloudflare_ranges }}"
+
+- name: HTTPS to the edge container only from Cloudflare
+  community.general.ufw: { rule: allow, route: true, port: "443", proto: tcp, from_ip: "{{ item }}" }
+  loop: "{{ cloudflare_ranges }}"
+
+- name: Enable ufw
+  community.general.ufw: { state: enabled }
