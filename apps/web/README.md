@@ -40,7 +40,10 @@ workspace switcher with badges, account menu and verification banner (#35); home
 and a live setup checklist; settings with language and signed-in devices; base components in `layers/ui`
 (#34); the typed client and error handling (#37). The **shared inbox** (`layers/inbox`): filters, conversations,
 chat with the 24-hour window, replies, assignment, close/reopen, the order bar and the customer's orders with
-confirm/cancel. Orders and confirmations pages are placeholders until their PRs. Not yet: 2FA and team invites
+confirm/cancel. The **confirmation board** (`layers/confirmations`): stages with counts, filters (owner,
+governorate, risk, amount, dates), bulk confirm/remind/cancel with per-order results, an order drawer with the
+WhatsApp confirmation run and the timeline, and the **confirmation rules** page. The orders page is a placeholder
+until its PR. Not yet: 2FA and team invites
 (no API yet), dark mode, real-time (the inbox polls every 5–15 s, badges every minute, until the Centrifugo
 connection-token endpoint exists).
 

@@ -48,6 +48,7 @@ const collapsed = ref<Record<string, boolean>>({})
           </li>
         </ul>
       </section>
+      <slot />
     </div>
   </aside>
 </template>

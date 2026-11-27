@@ -302,10 +302,179 @@
     "orders": {
       "title": "Orders arrive here",
       "body": "The orders list comes in an upcoming update."
+    }
+  },
+  "board": {
+    "queue": "Queue",
+    "filters": "Filters",
+    "clear": "Clear filters ({n})",
+    "owner": "Owner",
+    "ownerAll": "Everyone",
+    "ownerMe": "Mine",
+    "ownerNone": "Nobody yet",
+    "governorate": "Governorate",
+    "anyGovernorate": "All governorates",
+    "minRisk": "Refusal risk",
+    "any": "Any",
+    "minTotal": "Min amount",
+    "maxTotal": "Max amount",
+    "from": "Placed from",
+    "to": "Placed to",
+    "stage": {
+      "new": "New",
+      "awaiting_customer": "Awaiting customer",
+      "needs_call": "Needs a call",
+      "confirmed": "Trik'd",
+      "cancelled": "Cancelled"
     },
-    "confirmations": {
-      "title": "The confirmation board",
-      "body": "Orders waiting for confirmation, with bulk actions, come in an upcoming update."
+    "empty": {
+      "new": {
+        "title": "No new orders",
+        "body": "New orders from your store or chat land here first."
+      },
+      "awaiting_customer": {
+        "title": "Nobody to wait for",
+        "body": "Orders waiting for the customer to answer the confirmation show here."
+      },
+      "needs_call": {
+        "title": "No calls to make",
+        "body": "Orders that got no answer, or need a person, show here."
+      },
+      "confirmed": {
+        "title": "No Trik'd orders yet",
+        "body": "Confirmed orders show here, ready to ship."
+      },
+      "cancelled": {
+        "title": "No cancelled orders",
+        "body": "Cancelled orders show here."
+      }
+    },
+    "emptyFiltered": "No orders match these filters.",
+    "rules": "Confirmation rules",
+    "confirm": "Confirm",
+    "confirmOne": "Confirm order #{n}",
+    "selectAll": "Select all orders on this page",
+    "select": "Select order #{n}",
+    "col": {
+      "order": "Order",
+      "customer": "Customer",
+      "amount": "Amount",
+      "risk": "Refusal risk",
+      "step": "Step",
+      "waiting": "Waiting",
+      "actions": "Actions"
+    },
+    "source": {
+      "chat": "Chat",
+      "shopify": "Shopify",
+      "easyorders": "EasyOrders"
+    },
+    "risk": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "unit": {
+      "d": "{n} d",
+      "h": "{n} h",
+      "m": "{n} min"
+    },
+    "prepaid": "Prepaid",
+    "callReason": {
+      "no_reply": "No reply: call",
+      "change_requested": "Wants a change",
+      "send_failed": "Message failed: call",
+      "no_number": "No WhatsApp: call"
+    },
+    "bulk": {
+      "label": "Bulk actions",
+      "selected": "{n} selected",
+      "remind": "Send reminder",
+      "cancel": "Cancel orders",
+      "clear": "Clear selection",
+      "cancelTitle": "Cancel {n} orders?",
+      "done": {
+        "confirm": "{n} confirmed",
+        "cancel": "{n} cancelled",
+        "remind": "{n} reminded"
+      },
+      "skipped": "{n} skipped (already there)",
+      "failed": "{n} not done: {reason}",
+      "gone": "{n} no longer here"
+    },
+    "reason": "Reason (optional)",
+    "reasonHint": "Kept on the order for your team.",
+    "run": {
+      "title": "WhatsApp confirmation",
+      "none": "No confirmation message for this order (confirmation was off, or it was handled by hand).",
+      "status": "Status",
+      "messages": "Messages",
+      "reminders": "{n} reminders",
+      "outcome": "Outcome",
+      "next": "Next step at",
+      "statusName": {
+        "pending": "Waiting to send",
+        "sent": "Sent, waiting for the customer",
+        "resolved": "Done",
+        "escalated": "Needs a call",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "outcomeName": {
+        "confirmed": "Customer confirmed",
+        "cancelled": "Customer cancelled",
+        "change_requested": "Customer asked for a change",
+        "no_reply": "No reply",
+        "settled_elsewhere": "Settled by the team",
+        "address-needs-fix": "Address needs fixing",
+        "no_number": "No WhatsApp number",
+        "send_failed": "Message could not be sent"
+      }
+    },
+    "timeline": "Timeline",
+    "event": {
+      "created": "Order created",
+      "status_changed": "{from} → {to}",
+      "updated": "Order edited",
+      "address_fixed": "Address fixed",
+      "address_flagged": "Address flagged to fix",
+      "address_unflagged": "Address flag cleared",
+      "note_changed": "Note changed",
+      "other": "Updated"
+    }
+  },
+  "rules": {
+    "title": "Confirmation rules",
+    "sub": "Every cash-on-delivery order gets a WhatsApp message with Confirm, Change and Cancel buttons. Choose how it goes.",
+    "enabled": "Confirm orders on WhatsApp",
+    "enabledSub": "New COD orders get the confirmation message automatically.",
+    "needTemplate": "Choose an approved template first.",
+    "message": "The message",
+    "number": "Send from",
+    "template": "Confirmation template",
+    "chooseTemplate": "Choose a template…",
+    "templateHint": "Approved templates only. It gets the customer name, the order number and the amount, and three buttons: Confirm, Change, Cancel.",
+    "noTemplates": "This number has no approved template yet. Create one in WhatsApp Manager, then come back.",
+    "ladder": "If the customer doesn't answer",
+    "reminderAfter": "Send a reminder after",
+    "maxReminders": "Reminders, at most",
+    "reminderTemplate": "Reminder template",
+    "sameTemplate": "Same as the confirmation",
+    "escalateAfter": "Move to \"Needs a call\" after",
+    "escalateHint": "Counted from the last message, when no reminders are left.",
+    "replies": "Automatic replies",
+    "repliesSub": "Sent in the chat when the customer taps a button. Leave empty to send nothing.",
+    "confirmed_reply": "When they confirm",
+    "cancelled_reply": "When they cancel",
+    "change_reply": "When they ask for a change",
+    "minutes": "{n} minutes",
+    "hours": "{n} hours",
+    "save": "Save the rules",
+    "saved": "Confirmation rules saved.",
+    "readOnly": "You can see the rules, but your role can't change them.",
+    "noNumber": {
+      "title": "Connect a WhatsApp number first",
+      "body": "Confirmation messages go out from one of your numbers."
     }
   }
 }
