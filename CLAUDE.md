@@ -114,16 +114,17 @@ Done and merged on `main`:
 - the WhatsApp provider layer (360dialog / Meta Cloud / Fake, partitioned storage, batch webhook drain);
 - permissions and roles;
 - ADRs 0010–0012 and the security review;
-- organizations above workspaces (#366), and organization roles, people and audit logs (#367).
+- organizations above workspaces (#366), and organization roles, people and audit logs (#367);
+- the inbox, badges, Orders, the confirmation engine and the confirmation board APIs (#379–#383).
 
-Open PRs, stacked; merge in this order (each retargets to `main` by itself):
-1. #379 inbox: one conversation per customer + 24 h window (#56, #60)
-2. #380 per-workspace badges for the switcher (#368)
-3. #381 Orders module + order card in chat + address fix (#105, #344)
-4. #382 confirmation engine over WhatsApp (#106)
-5. #383 confirmation board with bulk actions (#107)
+Open PRs, stacked; merge in this order (each retargets by itself):
+1. #389 web foundation (`apps/web`: shell, auth, design system, typed client)
+2. #390 web inbox
+3. #391 web confirmation board and confirmation rules
+4. #392 web orders (list, order page, new order) + boolean query filters accept `true`/`false`
 
-If they're still open when you start, branch from `feat/confirmation-board` (the top of the stack) and target it.
+Separate: #386 landing site (`apps/landing`), #388 production deploy (`infra/`, on #386), #387 waitlist API (to close:
+there is no waitlist). Web work branches from the top of the web stack (`feat/web-orders`) while it's open.
 
 Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
 - **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC
