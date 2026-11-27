@@ -2,11 +2,44 @@
 
 Nuxt 4.7, Vue 3.5, TypeScript 5.9, Tailwind CSS. Arabic (RTL) and English from day one.
 
-## Create the app (first time only)
+## Run it
 
 ```bash
-make scaffold-web          # or: ./scripts/scaffold-web.sh
+pnpm install
+pnpm dev                   # http://localhost:3000 (the API on :8080; see apps/api)
+pnpm lint && pnpm typecheck && pnpm test
+pnpm api:types             # after any change to packages/contracts/openapi/trik.v1.yaml (CI checks it)
 ```
+
+A single-page app (`ssr: false`): it signs in with the Sanctum **session cookie**. On writes it fetches the
+XSRF cookie once (`/sanctum/csrf-cookie`) and sends it back. Locally `localhost:3000` must be in the API's
+`SANCTUM_STATEFUL_DOMAINS` and `CORS_ALLOWED_ORIGINS`; in production the app is `app.trik.chat` with
+`SESSION_DOMAIN=.trik.chat`. URLs have no language prefix (emails link to `/reset-password` and `/verified`);
+the language lives in the `trik_locale` cookie.
+
+## Talking to the API
+
+```ts
+const api = useApi()                                             // typed from the OpenAPI contract
+const me = await call(api.GET('/auth/me'))                       // data, or throws ApiError
+const orders = await call(api.GET('/orders', { params: { ...inWorkspace(), query: { status: 'new' } } }))
+```
+
+- `call()` turns every failure (problem+json, network, a proxy's HTML) into one `ApiError` with `status`,
+  `code` and per-field `errors`. Show `t(problemMessageKey(e.problem))`: the API's English text is never shown
+  to Arabic users.
+- A 401 while signed in resets the session and opens sign-in with `?next=` (checked by `safeNext`).
+- Writes get an `Idempotency-Key`; workspace endpoints take `inWorkspace()` (the header is required by the
+  contract).
+- Pages are signed-in only unless they say `definePageMeta({ auth: 'guest' | 'public' })`.
+
+## What's built
+
+Sign-up, sign-in, forgot and reset password, the email-verified page (#36); the shell with the icon rail,
+workspace switcher with badges, account menu and verification banner (#35); home with where work is waiting
+and a live setup checklist; settings with language and signed-in devices; base components in `layers/ui`
+(#34); the typed client and error handling (#37). Inbox, orders and confirmations pages are placeholders until
+their PRs. Not yet: 2FA and team invites (no API yet), dark mode, real-time badges (polled every minute for now).
 
 ## Layout
 

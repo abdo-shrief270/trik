@@ -1,5 +1,6 @@
-import { defineVitestConfig } from '@nuxt/test-utils/config'
+import { defineConfig } from 'vitest/config'
 
-export default defineVitestConfig({
-  test: { environment: 'nuxt', include: ['tests/unit/**/*.spec.ts'] },
+// The logic under test (app/utils) is plain TypeScript: no Nuxt environment needed.
+export default defineConfig({
+  test: { environment: 'node', include: ['tests/unit/**/*.spec.ts'] },
 })
