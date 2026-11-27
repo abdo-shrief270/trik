@@ -15,7 +15,7 @@ final class OrderReader
 
         return $o === null ? null : new OrderSnapshot(
             $o->id, $o->contact_id, $o->number, $o->status, $o->payment_method, $o->customer_phone,
-            $o->customer_name, $o->total, $o->currency, $o->address_needs_fix,
+            $o->customer_name, $o->total, $o->currency, $o->address_needs_fix, $o->placed_at,
         );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Orders\Application;
 
+use DateTimeInterface;
 use Modules\Orders\Domain\OrderStatus;
 
 /** What other modules get to read of an order. */
@@ -20,6 +21,7 @@ final readonly class OrderSnapshot
         public int $total,
         public string $currency,
         public bool $addressNeedsFix,
+        public ?DateTimeInterface $placedAt = null,
     ) {}
 
     public function isCod(): bool
