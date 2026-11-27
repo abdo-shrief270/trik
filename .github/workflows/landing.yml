@@ -1,0 +1,46 @@
+name: Landing
+
+on:
+  pull_request:
+    paths: ["apps/landing/**", "packages/design-tokens/**", ".github/workflows/landing.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/landing/**", "packages/design-tokens/**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/landing
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6   # version comes from packageManager in apps/landing/package.json
+        with: { package_json_file: apps/landing/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version: 26, cache: pnpm, cache-dependency-path: apps/landing/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # The deployable artifact: a static site in .output/public.
+      - run: pnpm generate
+      - name: Every page was prerendered in both languages
+        run: |
+          for p in index.html en/index.html features/index.html en/features/index.html \
+                   features/confirmation/index.html features/risk/index.html features/inbox/index.html features/stores/index.html \
+                   how-it-works/index.html en/how-it-works/index.html pricing/index.html en/pricing/index.html \
+                   waitlist/index.html en/waitlist/index.html 404.html; do
+            test -s ".output/public/$p" || { echo "missing $p"; exit 1; }
+          done
+          grep -q 'dir="rtl"' .output/public/index.html
+          grep -q 'dir="ltr"' .output/public/en/index.html

@@ -1,0 +1,446 @@
+{
+  "brand": {
+    "name": "Trik"
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "howItWorks": "How it works",
+    "pricing": "Pricing",
+    "menu": "Menu",
+    "close": "Close menu",
+    "skip": "Skip to content",
+    "otherLanguage": "عربي"
+  },
+  "cta": {
+    "join": "Join the waitlist",
+    "seeHow": "See how it works",
+    "explore": "Explore the features",
+    "learnMore": "Learn more"
+  },
+  "hero": {
+    "eyebrow": "WhatsApp-first order operations · Egypt first",
+    "line1": "Sent. Read.",
+    "line2": "Trik'd.",
+    "sub": "WhatsApp gives you two ticks. Trik adds the third: every cash-on-delivery order is confirmed with the customer in the chat before it ships.",
+    "note": "The pilot opens soon for 10–20 sellers."
+  },
+  "chat": {
+    "name": "Mona Adel",
+    "meta": "WhatsApp · Maadi, Cairo",
+    "order": "#1048 · EGP 1,250",
+    "pending": "Waiting for confirmation",
+    "confirmed": "Trik'd · ready to ship",
+    "message": "Hi Mona, we got your order #1048. Total EGP 1,250, cash on delivery. Tap Confirm and we'll ship it.",
+    "confirm": "Confirm",
+    "edit": "Change",
+    "reply": "Confirm",
+    "trikd": "Order #1048 is Trik'd",
+    "typing": "typing",
+    "label": "An example of an order confirmed in a WhatsApp chat"
+  },
+  "ticker": {
+    "label": "Orders being confirmed",
+    "awaiting": "Awaiting",
+    "trikd": "Trik'd",
+    "deposit": "Deposit paid"
+  },
+  "problem": {
+    "eyebrow": "The problem",
+    "title": "Sellers sell in the chat. Orders break after it.",
+    "items": [
+      {
+        "title": "Orders are not confirmed",
+        "body": "Orders arrive in WhatsApp and from the store. Someone confirms them by hand, if at all, so fake, duplicate and impulse orders ship anyway."
+      },
+      {
+        "title": "Refusals eat the margin",
+        "body": "A refused cash-on-delivery parcel costs shipping both ways and the ad that brought it. Most sellers never see that per order."
+      },
+      {
+        "title": "Nothing is connected",
+        "body": "The chat, the store, couriers, payments and ad spend live in different places, so nobody knows the real profit."
+      }
+    ]
+  },
+  "road": {
+    "eyebrow": "The whole road",
+    "title": "From the first message to cash in your hand.",
+    "steps": [
+      {
+        "name": "Chat",
+        "body": "The customer orders in WhatsApp or in your store."
+      },
+      {
+        "name": "Trik'd",
+        "body": "Confirmed in the chat, before anything ships."
+      },
+      {
+        "name": "Deposit",
+        "body": "Asked only when the refusal risk is high."
+      },
+      {
+        "name": "Courier",
+        "body": "Sent with the courier that delivers best in that area."
+      },
+      {
+        "name": "Delivered",
+        "body": "Rescued in the chat if an attempt fails."
+      },
+      {
+        "name": "Cash",
+        "body": "Collected and matched to the order."
+      },
+      {
+        "name": "Profit",
+        "body": "Known per order, after shipping and ads."
+      }
+    ]
+  },
+  "board": {
+    "eyebrow": "The confirmation board",
+    "title": "Watch the queue confirm itself.",
+    "sub": "Every order moves on its own: WhatsApp message, then a reminder, then a call. Your team only touches what's left. Try confirming one.",
+    "order": "Order",
+    "customer": "Customer",
+    "risk": "Refusal risk",
+    "step": "Step",
+    "action": "",
+    "confirm": "Confirm",
+    "steps": {
+      "whatsapp": "WhatsApp sent",
+      "reminder": "Reminder sent",
+      "call": "Call queued",
+      "deposit": "Deposit asked",
+      "trikd": "Trik'd"
+    },
+    "riskLevels": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "confirmedCount": "{n} of {total} confirmed",
+    "sample": "Sample data",
+    "reset": "Replay"
+  },
+  "calc": {
+    "eyebrow": "Do the maths",
+    "title": "What refusals cost you every month.",
+    "sub": "Shipping out, shipping back, and the ad that brought the order. Move the sliders to your own numbers. Nothing leaves your browser.",
+    "orders": "COD orders a month",
+    "rate": "Refused",
+    "ship": "Shipping per trip",
+    "ad": "Ad cost per order",
+    "lost": "Lost to refusals every month",
+    "refused": "Refused parcels",
+    "shipping": "Shipping both ways",
+    "ads": "Ads spent on them",
+    "currency": "EGP",
+    "disclaimer": "Trik doesn't promise a number. It confirms each order before it ships, so you can watch this one go down."
+  },
+  "features": {
+    "eyebrow": "The product",
+    "title": "Trik it before you ship it.",
+    "sub": "Four tools that work as one, built for teams of 1 to 50 who sell in the chat.",
+    "items": {
+      "inbox": {
+        "title": "One shared inbox",
+        "short": "The whole team on one WhatsApp number, one conversation per customer, the order beside the chat.",
+        "eyebrow": "Shared inbox",
+        "headline": "Every chat, every agent, one number.",
+        "sub": "Stop passing one phone around. Your team answers from one WhatsApp number, sees who is on which chat, and has the order card right next to the conversation.",
+        "points": [
+          {
+            "title": "One conversation per customer",
+            "body": "Every message from the same customer lands in one thread, with their past orders and refusals on the side."
+          },
+          {
+            "title": "The 24-hour window, handled",
+            "body": "Trik shows when the free reply window closes and switches to approved templates when it does."
+          },
+          {
+            "title": "Badges across brands",
+            "body": "Run more than one store? See unread chats for every workspace from one switcher."
+          }
+        ]
+      },
+      "confirmation": {
+        "title": "Confirmation on autopilot",
+        "short": "Every COD order gets a message, then a reminder, then a call. Confirm the rest in bulk.",
+        "eyebrow": "Confirmation engine",
+        "headline": "Every COD order confirmed in the chat.",
+        "sub": "A message with Confirm and Change buttons goes out the moment the order arrives. No answer? A reminder, then the call queue. Your team works one board instead of a spreadsheet.",
+        "points": [
+          {
+            "title": "A ladder, not a guess",
+            "body": "WhatsApp, reminder, call: each step waits the time you choose before the next."
+          },
+          {
+            "title": "Changes in the chat",
+            "body": "Size, address or delivery day: the customer replies, the order card updates."
+          },
+          {
+            "title": "Bulk actions",
+            "body": "Confirm, remind, queue a call or cancel many orders from the board at once."
+          }
+        ]
+      },
+      "risk": {
+        "title": "Refusal risk, explained",
+        "short": "A score with the reason for every order. Ask a deposit only where it matters.",
+        "eyebrow": "Refusal risk",
+        "headline": "Know which orders will come back.",
+        "sub": "Every order gets a refusal risk score with the reasons behind it. High risk asks for a small deposit; good customers are never bothered.",
+        "points": [
+          {
+            "title": "A reason, not just a number",
+            "body": "Past refusals, a new number, an unclear address: you see why, in plain words."
+          },
+          {
+            "title": "Deposits only when needed",
+            "body": "Set the score that triggers a deposit. Paid deposits are taken off the amount due on delivery."
+          },
+          {
+            "title": "Filter the board by risk",
+            "body": "Work the riskiest orders first, or hold them until they're confirmed."
+          }
+        ]
+      },
+      "stores": {
+        "title": "Orders from every store",
+        "short": "Shopify and EasyOrders orders land beside the ones taken in chat.",
+        "eyebrow": "Store connectors",
+        "headline": "Every order in one place, wherever it came from.",
+        "sub": "Connect your store once. New orders arrive by themselves and go through the same confirmation, with the status written back to the store.",
+        "points": [
+          {
+            "title": "Shopify and EasyOrders",
+            "body": "Install in a few clicks. More stores are on the way."
+          },
+          {
+            "title": "Orders taken in chat",
+            "body": "Agents create orders right in the conversation: the same card, the same confirmation."
+          },
+          {
+            "title": "No duplicates",
+            "body": "Each order is recorded once per source, however many times the store sends it."
+          }
+        ]
+      }
+    }
+  },
+  "how": {
+    "eyebrow": "How it works",
+    "title": "Live on your own number in an afternoon.",
+    "sub": "No new phone, no new app for your customers. They keep talking to you on WhatsApp.",
+    "steps": [
+      {
+        "title": "Connect WhatsApp",
+        "body": "Sign in with Meta and connect the number your customers already know. Keep using the WhatsApp Business app beside Trik if you want."
+      },
+      {
+        "title": "Connect your store",
+        "body": "Install Trik on Shopify or EasyOrders, or take orders in the chat only."
+      },
+      {
+        "title": "Set your confirmation rules",
+        "body": "Choose the messages, the reminder timing, and the risk score that asks for a deposit."
+      },
+      {
+        "title": "Go live",
+        "body": "New orders start confirming themselves. Your team works the board and the inbox."
+      }
+    ],
+    "setupHelp": "We set it up with you during the pilot."
+  },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "Pay per month, not per message.",
+    "sub": "Monthly plans in Egyptian pounds with a bundle of orders included. No charge per contact, conversation or message.",
+    "finderLabel": "How many orders do you get a month?",
+    "finderValue": "{n} orders a month",
+    "recommended": "Fits you",
+    "priceSoon": "Pilot pricing",
+    "priceNote": "Prices are set with the first pilot sellers.",
+    "perMonth": "/ month",
+    "bundle": "Up to {n} orders a month",
+    "plans": [
+      {
+        "name": "Starter",
+        "for": "One seller with a phone",
+        "features": [
+          "Shared inbox for 1 person",
+          "Confirmation messages and reminders",
+          "Orders taken in chat"
+        ]
+      },
+      {
+        "name": "Growth",
+        "for": "Small teams with a store",
+        "features": [
+          "Everything in Starter",
+          "Up to 5 people",
+          "Shopify and EasyOrders",
+          "Refusal risk and deposits"
+        ]
+      },
+      {
+        "name": "Pro",
+        "for": "Teams of 5 to 50",
+        "features": [
+          "Everything in Growth",
+          "Up to 50 people",
+          "Several brands, one login",
+          "Call queue and bulk actions"
+        ]
+      }
+    ],
+    "faqTitle": "Questions",
+    "faq": [
+      {
+        "q": "Do you charge per message?",
+        "a": "No. Plans are monthly with a bundle of orders. Meta's own WhatsApp conversation fees are shown to you before you send."
+      },
+      {
+        "q": "Can I keep my WhatsApp number?",
+        "a": "Yes. Trik connects to the number your customers already know."
+      },
+      {
+        "q": "Which payment methods will you accept?",
+        "a": "Cards, mobile wallets, Fawry and bank transfer, with tax invoices."
+      },
+      {
+        "q": "What if I want to leave?",
+        "a": "Cancel from settings at any time and export your data."
+      }
+    ]
+  },
+  "waitlist": {
+    "eyebrow": "The pilot",
+    "title": "Be one of the first sellers.",
+    "sub": "We're opening Trik to 10–20 sellers first, and setting it up with each of them.",
+    "name": "Your name",
+    "store": "Store or brand name",
+    "email": "Email",
+    "phone": "WhatsApp number",
+    "platform": "Where do you sell?",
+    "platforms": {
+      "whatsapp": "Only in the chat",
+      "shopify": "Shopify",
+      "easyorders": "EasyOrders",
+      "other": "Another store"
+    },
+    "orders": "Orders a month",
+    "ordersOptions": {
+      "s": "Under 300",
+      "m": "300 – 1,500",
+      "l": "1,500 – 5,000",
+      "xl": "More than 5,000"
+    },
+    "consent": "Email me about the pilot. You can unsubscribe at any time.",
+    "submit": "Join the waitlist",
+    "sending": "Sending…",
+    "errors": {
+      "required": "Fill this in.",
+      "email": "This email doesn't look right.",
+      "phone": "Use a full number with the country code, like +20 10 1234 5678.",
+      "consent": "Tick this so we can email you.",
+      "network": "We couldn't send that. Check your connection and try again.",
+      "server": "Something went wrong on our side. Try again in a minute."
+    },
+    "checkTitle": "Check your email.",
+    "checkBody": "We sent a link to {email}. Open it to confirm your place on the waitlist.",
+    "checkHint": "Nothing after a few minutes? Look in spam, or",
+    "checkRetry": "try again",
+    "compactPlaceholder": "Your email",
+    "compactHint": "We'll send a link to confirm."
+  },
+  "notFound": {
+    "title": "This page didn't get the third tick.",
+    "body": "It may have moved, or never existed.",
+    "back": "Back to home"
+  },
+  "footer": {
+    "tagline": "WhatsApp-first order operations for sellers in Egypt and the Middle East.",
+    "product": "Product",
+    "company": "Company",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "rights": "© {year} Trik. All rights reserved."
+  },
+  "meta": {
+    "home": {
+      "title": "Trik · Your orders, Trik'd.",
+      "description": "Trik confirms every cash-on-delivery order with the customer on WhatsApp, asks a deposit only when the refusal risk is high, and shows the real profit of each order."
+    },
+    "features": {
+      "title": "Features · Trik",
+      "description": "A shared WhatsApp inbox, automatic order confirmation, refusal risk and store connectors for sellers in Egypt."
+    },
+    "how": {
+      "title": "How it works · Trik",
+      "description": "Connect WhatsApp and your store, set your confirmation rules and go live in an afternoon."
+    },
+    "pricing": {
+      "title": "Pricing · Trik",
+      "description": "Monthly plans in EGP with a bundle of orders. No charge per contact, conversation or message."
+    },
+    "waitlist": {
+      "title": "Join the waitlist · Trik",
+      "description": "Join the Trik pilot for sellers in Egypt."
+    }
+  },
+  "visual": {
+    "risk": {
+      "label": "Refusal risk",
+      "of": "of 100",
+      "reasons": [
+        "Refused 2 of 4 past orders",
+        "First order from this number",
+        "Address is missing a building number"
+      ],
+      "deposit": "Deposit asked · EGP 200",
+      "paid": "Deposit paid"
+    },
+    "inbox": {
+      "mine": "Mine",
+      "all": "All chats",
+      "snippets": [
+        "Can delivery be on Saturday?",
+        "I want size L please",
+        "Is the beige one still available?",
+        "Confirm",
+        "Where is my order?",
+        "Can I pay by wallet?"
+      ],
+      "agents": [
+        "Sara",
+        "Ahmed",
+        "Laila"
+      ],
+      "window": "24-hour window · 3h left"
+    },
+    "stores": {
+      "whatsapp": "WhatsApp chat",
+      "into": "Every order, one queue",
+      "new": "New order"
+    }
+  },
+  "howVisual": {
+    "connected": "Connected",
+    "number": "WhatsApp Business number",
+    "store": "Store",
+    "install": "Installed",
+    "rules": "Confirmation rules",
+    "rule1": "Send confirmation",
+    "rule1v": "right away",
+    "rule2": "Reminder after",
+    "rule2v": "2 hours",
+    "rule3": "Call after",
+    "rule3v": "6 hours",
+    "rule4": "Ask a deposit from risk",
+    "rule4v": "60+",
+    "live": "Live"
+  }
+}
