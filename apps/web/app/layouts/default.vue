@@ -25,10 +25,11 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <template>
-  <div class="flex min-h-dvh">
+  <div class="flex h-dvh overflow-hidden">
+    <!-- A fixed-height viewport: pages scroll inside <main> (the inbox scrolls each column on its own). -->
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:start-24 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-indigo focus:px-4 focus:py-2 focus:text-white">{{ t('shell.skip') }}</a>
 
-    <nav :aria-label="t('shell.main')" class="on-dark sticky top-0 flex h-dvh w-[76px] shrink-0 flex-col items-center gap-2 bg-ink py-4 text-white">
+    <nav :aria-label="t('shell.main')" class="on-dark flex h-full w-[76px] shrink-0 flex-col items-center gap-2 bg-ink py-4 text-white">
       <NuxtLink to="/" class="mb-3 grid h-10 place-items-center" :aria-label="t('brand.name')"><BrandMark tone="ink" :size="34" /></NuxtLink>
       <WorkspaceSwitcher />
       <span class="my-2 h-px w-8 bg-white/10" aria-hidden="true" />
@@ -66,7 +67,7 @@ onBeforeUnmount(() => clearInterval(timer))
 
     <div class="flex min-w-0 flex-1 flex-col">
       <VerifyEmailBanner />
-      <main id="main" tabindex="-1" class="flex min-h-0 flex-1 outline-none">
+      <main id="main" tabindex="-1" class="flex min-h-0 flex-1 overflow-y-auto outline-none">
         <slot />
       </main>
     </div>

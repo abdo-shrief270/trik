@@ -38,8 +38,11 @@ const orders = await call(api.GET('/orders', { params: { ...inWorkspace(), query
 Sign-up, sign-in, forgot and reset password, the email-verified page (#36); the shell with the icon rail,
 workspace switcher with badges, account menu and verification banner (#35); home with where work is waiting
 and a live setup checklist; settings with language and signed-in devices; base components in `layers/ui`
-(#34); the typed client and error handling (#37). Inbox, orders and confirmations pages are placeholders until
-their PRs. Not yet: 2FA and team invites (no API yet), dark mode, real-time badges (polled every minute for now).
+(#34); the typed client and error handling (#37). The **shared inbox** (`layers/inbox`): filters, conversations,
+chat with the 24-hour window, replies, assignment, close/reopen, the order bar and the customer's orders with
+confirm/cancel. Orders and confirmations pages are placeholders until their PRs. Not yet: 2FA and team invites
+(no API yet), dark mode, real-time (the inbox polls every 5–15 s, badges every minute, until the Centrifugo
+connection-token endpoint exists).
 
 ## Layout
 

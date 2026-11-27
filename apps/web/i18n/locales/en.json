@@ -16,7 +16,8 @@
     "switchWorkspace": "Switch workspace",
     "workspaceLabel": "Workspace: {name}. Switch workspace",
     "unreadCount": "{n} unread",
-    "account": "Your account"
+    "account": "Your account",
+    "sharedWithYou": "Shared with you"
   },
   "roles": {
     "owner": "Owner",
@@ -154,20 +155,150 @@
     "confirm": "Confirm order",
     "trikd": "Trik'd",
     "awaitingDeposit": "Awaiting deposit",
-    "risk": "Risk {score}"
+    "risk": "Refusal risk",
+    "title": "Order {n}",
+    "building": "Building",
+    "floor": "Floor",
+    "total": "Total",
+    "cod": "Collect on delivery",
+    "address": "Delivery address",
+    "cancel": "Cancel",
+    "status": {
+      "new": "New",
+      "confirming": "Confirming",
+      "awaiting_deposit": "Awaiting deposit",
+      "confirmed": "Trik'd",
+      "ready_to_ship": "Ready to ship",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "returned": "Refused",
+      "cancelled": "Cancelled"
+    },
+    "next": {
+      "confirm": "Waiting for confirmation",
+      "fix_address": "The address needs fixing before confirming",
+      "resend_deposit_link": "Waiting for the deposit"
+    },
+    "confirmedDone": "Order #{n} is Trik'd.",
+    "cancelledDone": "Order #{n} cancelled.",
+    "cancelTitle": "Cancel order #{n}?",
+    "cancelBody": "The customer won't get it. You can't undo this from the inbox.",
+    "keep": "Keep the order",
+    "cancelYes": "Cancel the order"
   },
   "inbox": {
     "title": "Inbox",
     "queue": "Queue",
     "unread": "Unread",
     "assignedToMe": "Assigned to me",
-    "unassigned": "Unassigned"
+    "unassigned": "Unassigned",
+    "conversations": "Conversations",
+    "filter": "Show",
+    "unreadOnly": "Unread",
+    "filters": {
+      "open": "All open",
+      "mine": "Assigned to me",
+      "unassigned": "Unassigned",
+      "closed": "Closed"
+    },
+    "empty": {
+      "open": {
+        "title": "No open conversations",
+        "body": "When customers message your WhatsApp number, their chats show here."
+      },
+      "mine": {
+        "title": "Nothing assigned to you",
+        "body": "Conversations you take or are given show here."
+      },
+      "unassigned": {
+        "title": "Everything has an owner",
+        "body": "No conversation is waiting for someone to take it."
+      },
+      "closed": {
+        "title": "No closed conversations",
+        "body": "Closed chats show here; a new customer message reopens them."
+      }
+    },
+    "pick": {
+      "title": "Pick a conversation",
+      "body": "Choose a chat on the left to read it and reply."
+    },
+    "more": "Load more",
+    "tryAgain": "Try again",
+    "backToList": "Back to conversations",
+    "you": "You",
+    "youName": "You",
+    "teammate": "Teammate",
+    "kind": {
+      "image": "Photo",
+      "video": "Video",
+      "audio": "Voice note",
+      "document": "Document",
+      "sticker": "Sticker",
+      "location": "Location",
+      "template": "Template message",
+      "reply": "Button reply",
+      "unsupported": "Message"
+    },
+    "status": {
+      "queued": "Queued",
+      "sending": "Sending",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "read": "Read",
+      "failed": "Not sent",
+      "received": "Received"
+    },
+    "notSent": "Not sent.",
+    "retry": "Try again",
+    "discard": "Discard",
+    "closed": "Closed",
+    "windowClosedShort": "24h window closed",
+    "reply": "Reply",
+    "replyLabel": "Your reply",
+    "placeholder": "Type a reply…",
+    "enterHint": "Enter to send · Shift+Enter for a new line",
+    "send": "Send",
+    "windowLeft": "24h window: {h}:{m} left",
+    "freeEntry": "Free (ad)",
+    "windowClosed": "The customer last wrote more than 24 hours ago, so WhatsApp only allows approved template messages now. Templates come in a later update; the chat reopens as soon as the customer writes again.",
+    "readOnly": "You can read this conversation but your role can't reply. Ask an owner or admin.",
+    "chatWith": "Chat with {name}",
+    "messages": "Messages",
+    "older": "Show older messages",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "noMessages": "No messages yet",
+    "assign": "Assign",
+    "unassign": "Unassign",
+    "assignMe": "Take it",
+    "close": "Close",
+    "reopen": "Reopen",
+    "assignedTo": "Assigned to {name}.",
+    "unassignedDone": "Unassigned.",
+    "closedDone": "Conversation closed.",
+    "reopenedDone": "Conversation reopened.",
+    "customer": "Customer",
+    "orders": "Orders",
+    "noOrders": "No orders yet.",
+    "ordersHidden": "Your role can't see orders.",
+    "stats": {
+      "orders": "Orders",
+      "delivered": "Delivered",
+      "refused": "Refused"
+    },
+    "errors": {
+      "window-closed": "The 24-hour window closed: only template messages can be sent now.",
+      "no-number": "No WhatsApp number is connected to send from.",
+      "cannot-assign": "Your role can only take conversations for yourself.",
+      "assignee-cannot-view": "That person can't see the inbox, so they can't be assigned.",
+      "email-not-verified": "Confirm your email first.",
+      "address-needs-fix": "Fix the delivery address before confirming this order.",
+      "invalid-transition": "This order has moved on; refresh to see where it is.",
+      "order-changed": "Someone changed this order at the same time. Refresh and try again."
+    }
   },
   "placeholder": {
-    "inbox": {
-      "title": "Conversations arrive here",
-      "body": "The shared inbox comes in the next update: one conversation per customer, with the order beside the chat."
-    },
     "orders": {
       "title": "Orders arrive here",
       "body": "The orders list comes in an upcoming update."

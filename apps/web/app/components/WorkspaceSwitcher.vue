@@ -4,11 +4,14 @@ const session = useSessionStore()
 const { t } = useI18n()
 const menu = ref<{ close: (refocus?: boolean) => void } | null>(null)
 
+// Grouped by the caller's organizations, plus the workspaces they were added to in someone else's organization
+// (an agent invited to a store: /auth/me lists the workspace, but not that organization).
 const groups = computed(() => {
-  if (session.organizations.length) {
-    return session.organizations.map((o) => ({ id: o.id ?? '', name: o.name ?? '', workspaces: o.workspaces ?? [] }))
-  }
-  return [{ id: 'all', name: '', workspaces: session.workspaces }]
+  const orgs = session.organizations.map((o) => ({ id: o.id ?? '', name: o.name ?? '', workspaces: o.workspaces ?? [] }))
+  const inOrgs = new Set(orgs.flatMap((o) => o.workspaces.map((w) => w.id)))
+  const shared = session.workspaces.filter((w) => !inOrgs.has(w.id))
+  if (!orgs.length) return [{ id: 'all', name: '', workspaces: session.workspaces }]
+  return shared.length ? [...orgs, { id: 'shared', name: t('shell.sharedWithYou'), workspaces: shared }] : orgs
 })
 
 function pick(id: string) {
