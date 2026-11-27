@@ -21,5 +21,10 @@ return [
     'features' => [
         'inbox' => env('FEATURE_INBOX', 'all'),
         'orders' => env('FEATURE_ORDERS', 'all'),
+        // Public waitlist on trik.chat: 'all' while it is open, 'none' to close it (e.g. under abuse).
+        'waitlist' => env('FEATURE_WAITLIST', 'all'),
     ],
+
+    // The marketing site (apps/landing). Waitlist email links land on its pages.
+    'landing_url' => env('LANDING_URL', 'http://localhost:3100'),
 ];

@@ -346,14 +346,22 @@
       "phone": "Use a full number with the country code, like +20 10 1234 5678.",
       "consent": "Tick this so we can email you.",
       "network": "We couldn't send that. Check your connection and try again.",
-      "server": "Something went wrong on our side. Try again in a minute."
+      "server": "Something went wrong on our side. Try again in a minute.",
+      "tooMany": "Too many tries from here. Wait a few minutes and try again."
     },
     "checkTitle": "Check your email.",
     "checkBody": "We sent a link to {email}. Open it to confirm your place on the waitlist.",
     "checkHint": "Nothing after a few minutes? Look in spam, or",
     "checkRetry": "try again",
     "compactPlaceholder": "Your email",
-    "compactHint": "We'll send a link to confirm."
+    "compactHint": "We'll send a link to confirm.",
+    "expired": "That link has expired or was already replaced. Fill in the form again and we will send a fresh one.",
+    "confirmedTitle": "You're on the list.",
+    "confirmedBody": "Your place in the Trik pilot is saved. We will write to you on WhatsApp or by email when your turn comes.",
+    "confirmedNext": "While you wait, see how Trik confirms orders.",
+    "unsubscribedTitle": "You left the waitlist.",
+    "unsubscribedBody": "We will not email you about the pilot again. Changed your mind? You can sign up again at any time.",
+    "rejoin": "Join again"
   },
   "notFound": {
     "title": "This page didn't get the third tick.",

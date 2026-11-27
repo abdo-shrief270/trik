@@ -20,6 +20,8 @@ tags:
 - name: Inbox
 - name: Orders
 - name: Confirmation
+- name: Waitlist
+  description: Public pilot waitlist for trik.chat, with double opt-in. No sign-in.
 paths:
   /auth/register:
     post:
@@ -2665,6 +2667,143 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /waitlist:
+    post:
+      operationId: joinWaitlist
+      summary: Join the pilot waitlist (double opt-in)
+      description: Public. Always answers 202 with the same body, whether the email is new, waiting for confirmation, already confirmed or unsubscribed, so the endpoint never tells who is on the list. A new or unsubscribed email gets a confirmation link (valid 7 days); a pending one gets it again at most every 10 minutes; a confirmed one is left as it is. Limited per IP and per email. Idempotent by design (no Idempotency-Key needed).
+      tags:
+      - Waitlist
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistSignup'
+      responses:
+        '202':
+          description: 'Accepted: check your email'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /waitlist/{entry}/confirm:
+    get:
+      operationId: confirmWaitlist
+      summary: Confirm a waitlist email from the signed link
+      tags:
+      - Waitlist
+      security: []
+      parameters:
+      - in: path
+        name: entry
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: expires
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: signature
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Confirmed (JSON clients)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '302':
+          description: 'Browsers are sent to the landing site (trik.chat): the result page in the entry''s language, or back to the form when the link is invalid or expired.'
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /waitlist/{entry}/unsubscribe:
+    get:
+      operationId: unsubscribeWaitlist
+      summary: Leave the waitlist from the link in any waitlist email
+      tags:
+      - Waitlist
+      security: []
+      parameters:
+      - in: path
+        name: entry
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: signature
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Unsubscribed (JSON clients)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '302':
+          description: 'Browsers are sent to the landing site (trik.chat): the result page in the entry''s language, or back to the form when the link is invalid or expired.'
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: unsubscribeWaitlistOneClick
+      summary: One-click unsubscribe (RFC 8058, List-Unsubscribe-Post) sent by mail providers
+      tags:
+      - Waitlist
+      security: []
+      parameters:
+      - in: path
+        name: entry
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: signature
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Unsubscribed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -3768,3 +3907,57 @@ components:
           - string
           - 'null'
           format: date-time
+    WaitlistSignup:
+      type: object
+      required:
+      - name
+      - store_name
+      - email
+      - phone
+      - platform
+      - monthly_orders
+      - consent
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        store_name:
+          type: string
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          pattern: ^\+[1-9][0-9]{7,14}$
+          description: E.164
+          examples:
+          - '+201012345678'
+        platform:
+          type: string
+          enum:
+          - whatsapp
+          - shopify
+          - easyorders
+          - other
+          description: Where the seller sells today (whatsapp = only in the chat)
+        monthly_orders:
+          type: string
+          enum:
+          - s
+          - m
+          - l
+          - xl
+          description: s < 300, m 300–1,500, l 1,500–5,000, xl > 5,000
+        locale:
+          type: string
+          enum:
+          - ar
+          - en
+          default: ar
+          description: Language of the emails and of the pages the links open
+        consent:
+          type: boolean
+          const: true
+          description: The seller agreed to get emails about the pilot

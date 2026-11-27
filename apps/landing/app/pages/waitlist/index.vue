@@ -6,6 +6,8 @@ const route = useRoute()
 
 const { form, errors, serverErrors, failure, sending, submit } = useWaitlist()
 if (typeof route.query.email === 'string') form.email = route.query.email
+// The API sends people here when a confirm or unsubscribe link is invalid or expired.
+const linkExpired = computed(() => route.query.link === 'expired')
 
 const errorFor = (f: WaitlistField) => serverErrors.value[f] ?? (errors.value[f] ? t(`waitlist.errors.${errors.value[f]}`) : '')
 
@@ -44,6 +46,10 @@ async function onSubmit() {
       </div>
 
       <form ref="formEl" v-reveal="150" novalidate class="rounded-[28px] border border-line bg-white p-6 shadow-[0_40px_100px_-60px_rgb(20_18_31/.5)] sm:p-10" @submit.prevent="onSubmit">
+        <p v-if="linkExpired" role="status" class="mb-7 flex items-start gap-3 rounded-xl bg-warning-bg px-4 py-3 text-[15px] font-medium text-warning">
+          <svg class="mt-0.5 size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+          {{ t('waitlist.expired') }}
+        </p>
         <div class="grid gap-5 sm:grid-cols-2">
           <div v-for="f in fields" :key="f.key" class="flex flex-col gap-2">
             <label :for="`wl-${f.key}`" class="text-sm font-semibold">{{ t(`waitlist.${f.key}`) }}</label>

@@ -20,7 +20,7 @@ export function useWaitlist() {
   const form = reactive<WaitlistForm>(emptyWaitlistForm())
   const errors = ref<WaitlistErrors>({})
   const serverErrors = ref<Partial<Record<WaitlistField, string>>>({})
-  const failure = ref<'network' | 'server' | null>(null)
+  const failure = ref<'network' | 'server' | 'tooMany' | null>(null)
   const sending = ref(false)
   const touched = ref(false)
 
@@ -55,6 +55,8 @@ export function useWaitlist() {
         }
         serverErrors.value = mapped
         if (!Object.keys(mapped).length) failure.value = 'server'
+      } else if (err.statusCode === 429) {
+        failure.value = 'tooMany'
       } else {
         failure.value = err.statusCode ? 'server' : 'network'
       }

@@ -50,7 +50,8 @@
             "Modules\\Payments\\": "modules/Payments/src/",
             "Modules\\Risk\\": "modules/Risk/src/",
             "Modules\\WhatsApp\\": "modules/WhatsApp/src/",
-            "Modules\\Workspaces\\": "modules/Workspaces/src/"
+            "Modules\\Workspaces\\": "modules/Workspaces/src/",
+            "Modules\\Waitlist\\": "modules/Waitlist/src/"
         }
     },
     "autoload-dev": {
@@ -76,7 +77,8 @@
             "Modules\\Payments\\Tests\\": "modules/Payments/tests/",
             "Modules\\Risk\\Tests\\": "modules/Risk/tests/",
             "Modules\\WhatsApp\\Tests\\": "modules/WhatsApp/tests/",
-            "Modules\\Workspaces\\Tests\\": "modules/Workspaces/tests/"
+            "Modules\\Workspaces\\Tests\\": "modules/Workspaces/tests/",
+            "Modules\\Waitlist\\Tests\\": "modules/Waitlist/tests/"
         }
     },
     "scripts": {

@@ -238,6 +238,36 @@ check("oversized webhook body refused before any work", r.status_code == 413, f"
 codes = {call("POST", f"/webhooks/whatsapp/fake/{uuid.uuid4()}", body={}).status_code for _ in range(400)}
 check("webhook endpoint throttles floods of bad requests", 429 in codes, f"400 junk requests got {sorted(codes)}")
 
+# ---------------- public waitlist (trik.chat)
+def waitlist(email, ip, **extra):
+    body = {"name": "Probe", "store_name": "Probe store", "email": email, "phone": "+201012345678",
+            "platform": "shopify", "monthly_orders": "m", "locale": "en", "consent": True, **extra}
+    return call("POST", "/v1/waitlist", body=body, headers={"X-Forwarded-For": ip})
+
+
+W = f"wl-{uuid.uuid4().hex[:8]}@probe.test"
+r1 = waitlist(W, "10.9.0.1", status="confirmed", confirmed_at="2020-01-01", id=str(uuid.uuid4()))
+w_status = sql(f"select status from waitlist_entries where email = '{W}'")
+check("waitlist sign-up ignores forged fields (status, id)", r1.status_code == 202 and w_status == "pending", f"{r1.status_code} status={w_status}")
+r2 = waitlist(W, "10.9.0.2", name="Overwriter")
+r3 = waitlist(f"wl-{uuid.uuid4().hex[:8]}@probe.test", "10.9.0.3")
+check("waitlist answers known and new emails identically (no enumeration)",
+      (r2.status_code, r2.text) == (r3.status_code, r3.text) and sql(f"select name from waitlist_entries where email = '{W}'") == "Probe", f"{r2.status_code} {r2.text} vs {r3.status_code} {r3.text}")
+WID = sql(f"select id from waitlist_entries where email = '{W}'")
+r = call("GET", f"/v1/waitlist/{WID}/confirm?expires=9999999999&signature=" + "0" * 64)
+check("waitlist confirm link with a forged signature is refused", r.status_code == 403 and sql(f"select status from waitlist_entries where email = '{W}'") == "pending", r.status_code)
+r = call("POST", f"/v1/waitlist/{WID}/unsubscribe")
+check("waitlist unsubscribe without a signature is refused", r.status_code == 403, r.status_code)
+r = call("GET", "/v1/waitlist/not-a-uuid/confirm")
+check("waitlist links with a malformed id answer 404", r.status_code == 404, r.status_code)
+# Rotating X-Forwarded-For defeats the per-IP limit when probing from a trusted proxy address; the
+# per-email limit (5 an hour, any IP) must still stop someone flooding one inbox.
+VICTIM = f"victim-{uuid.uuid4().hex[:8]}@probe.test"
+codes = [waitlist(VICTIM, f"10.8.{i}.1").status_code for i in range(7)]
+check("waitlist cannot be used to flood one inbox from many IPs", codes[-1] == 429 and int(sql(f"select confirmations_sent from waitlist_entries where email = '{VICTIM}'")) <= 5, codes)
+r = requests.options(BASE + "/v1/waitlist", headers={"Origin": "http://localhost:3100", "Access-Control-Request-Method": "POST"})
+check("CORS lets the landing site post the waitlist form", r.headers.get("Access-Control-Allow-Origin") == "http://localhost:3100", dict(r.headers))
+
 # ---------------- transport and browser
 r = requests.options(BASE + "/v1/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
 check("CORS does not allow arbitrary origins", r.headers.get("Access-Control-Allow-Origin") not in ("*", "https://evil.example"), r.headers.get("Access-Control-Allow-Origin"))

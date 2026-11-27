@@ -23,7 +23,9 @@ it('declares strict types in every PHP file under app/ and modules/', function (
 
     foreach ([$root.'/app', $root.'/modules'] as $dir) {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file->getExtension() === 'php' && ! str_contains((string) file_get_contents($file->getPathname()), 'declare(strict_types=1);')) {
+            // Blade templates (*.blade.php) are compiled by the framework, not PHP source: the rule doesn't apply.
+            if ($file->getExtension() === 'php' && ! str_ends_with($file->getFilename(), '.blade.php')
+                && ! str_contains((string) file_get_contents($file->getPathname()), 'declare(strict_types=1);')) {
                 $missing[] = str_replace($root.'/', '', $file->getPathname());
             }
         }

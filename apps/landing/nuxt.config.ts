@@ -50,7 +50,14 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    prerender: { crawlLinks: true, routes: ['/', '/en', '/404.html'] },
+    // The waitlist result pages are reached only from email links (via the API), so the crawler can't find them.
+    prerender: {
+      crawlLinks: true,
+      routes: [
+        '/', '/en', '/404.html',
+        ...['/waitlist/check-email', '/waitlist/confirmed', '/waitlist/unsubscribed'].flatMap((p) => [p, `/en${p}`]),
+      ],
+    },
   },
 
   typescript: { strict: true },

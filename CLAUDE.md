@@ -120,8 +120,9 @@ Done and merged on `main`:
   confirmation engine (#382) and confirmation board (#383).
 
 Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. Its waitlist form posts to
-`POST /v1/waitlist`, which the API does not have yet (API part of #102, double opt-in). Keep the copy in
-`apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only for "confirmed", never on light).
+`POST /v1/waitlist` (`modules/Waitlist`, double opt-in, #102); the emailed links land back on landing pages
+(`LANDING_URL`). Keep the copy in `apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules
+(lime only for "confirmed", never on light).
 
 Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
 - **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC

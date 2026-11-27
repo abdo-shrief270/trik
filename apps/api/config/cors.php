@@ -9,7 +9,8 @@ declare(strict_types=1);
 return [
     'paths' => ['v1/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3000')))))),
+    // The web app and the landing site (its waitlist form posts to /v1/waitlist).
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('FRONTEND_URL', 'http://localhost:3000').','.env('LANDING_URL', 'http://localhost:3100')))))),
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['Accept', 'Content-Type', 'Authorization', 'X-Workspace-Id', 'Idempotency-Key', 'X-Request-Id', 'X-XSRF-TOKEN', 'X-Requested-With'],
     'exposed_headers' => ['X-Request-Id', 'Idempotent-Replayed', 'Retry-After'],
