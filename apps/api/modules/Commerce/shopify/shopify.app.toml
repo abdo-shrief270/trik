@@ -22,7 +22,7 @@ api_version = "2026-10"
   topics = ["orders/create", "orders/updated", "orders/cancelled", "fulfillments/create", "fulfillments/update", "app/uninstalled"]
   uri = "https://api.trik.chat/webhooks/shopify"
 
-  # Mandatory privacy webhooks (#333) go here before an App Store review:
-  # [[webhooks.subscriptions]]
-  # compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
-  # uri = "https://api.trik.chat/webhooks/shopify/compliance"
+  # Mandatory privacy webhooks (#333)
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://api.trik.chat/webhooks/shopify/compliance"

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Modules\Commerce;
 
 use App\Support\Modules\ModuleServiceProvider;
+use App\Support\Privacy\PersonalDataRegistry;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Commerce\Application\CommercePersonalData;
 use Modules\Commerce\Infrastructure\Console\SweepCommand;
 
 /** Store connectors: Shopify (#332), then EasyOrders (#117). */
@@ -21,6 +23,8 @@ final class CommerceServiceProvider extends ModuleServiceProvider
 
     protected function bootModule(): void
     {
+        app(PersonalDataRegistry::class)->register(CommercePersonalData::class);
+
         if ($this->app->runningInConsole()) {
             $this->commands([SweepCommand::class]);
         }
