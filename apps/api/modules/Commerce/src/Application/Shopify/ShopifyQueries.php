@@ -52,6 +52,25 @@ final class ShopifyQueries
         }
         GQL;
 
+    public const TAGS_ADD = 'mutation ($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { field message } } }';
+
+    public const TAGS_REMOVE = 'mutation ($id: ID!, $tags: [String!]!) { tagsRemove(id: $id, tags: $tags) { userErrors { field message } } }';
+
+    /** What orderUpdate would otherwise wipe: it replaces the whole shipping address. */
+    public const ORDER_SHIPPING_ADDRESS = 'query ($id: ID!) { order(id: $id) { cancelledAt shippingAddress { firstName lastName phone zip company countryCodeV2 } } }';
+
+    public const ORDER_UPDATE = 'mutation ($input: OrderInput!) { orderUpdate(input: $input) { order { id } userErrors { field message } } }';
+
+    /** Unpaid COD orders: no refund; the items go back to stock; the customer isn't emailed. */
+    public const ORDER_CANCEL = <<<'GQL'
+        mutation ($orderId: ID!, $staffNote: String) {
+          orderCancel(orderId: $orderId, reason: CUSTOMER, refund: false, restock: true, notifyCustomer: false, staffNote: $staffNote) {
+            job { id }
+            orderCancelUserErrors { field message code }
+          }
+        }
+        GQL;
+
     public const BULK_STATUS = <<<'GQL'
         query ($id: ID!) {
           node(id: $id) { ... on BulkOperation { id status errorCode objectCount url partialDataUrl } }

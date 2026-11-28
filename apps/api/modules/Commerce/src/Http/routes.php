@@ -10,6 +10,7 @@ Route::middleware(['auth:sanctum', 'verified.email', 'workspace', 'feature:comme
     Route::post('shopify/install', [StoreController::class, 'installShopify'])->middleware(['can:commerce.stores.manage', 'throttle:10,1'])->name('shopify.install');
 
     Route::prefix('stores/{store}')->whereUuid('store')->name('stores.')->group(function (): void {
+        Route::patch('/', [StoreController::class, 'update'])->middleware('can:commerce.stores.manage')->name('update');
         Route::delete('/', [StoreController::class, 'destroy'])->middleware('can:commerce.stores.manage')->name('destroy');
         Route::post('backfill', [StoreController::class, 'backfill'])->middleware(['can:commerce.stores.manage', 'idempotency:required'])->name('backfill');
     });

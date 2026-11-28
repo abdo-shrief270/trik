@@ -2760,6 +2760,65 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /commerce/stores/{store}:
+    patch:
+      operationId: updateStore
+      summary: Choose what Trik writes back to the store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Only the settings given change. Write-back happens for changes made in Trik (an agent, the confirmation engine): a confirmation or cancellation, or a fixed address. It runs on the queue, and each write (or refusal) appears on the order timeline as `store_updated` / `store_update_failed`. Changes that came from the store are never written back. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - settings
+              properties:
+                settings:
+                  type: object
+                  description: What Trik writes back to the store.
+                  properties:
+                    tag_orders:
+                      type: boolean
+                      description: Tag orders `trik-confirmed` / `trik-cancelled` (default on)
+                    write_address:
+                      type: boolean
+                      description: Send an address fixed in Trik to the store, keeping its name and phone (default on)
+                    cancel_in_store:
+                      type: boolean
+                      description: Cancel the order in the store (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)
+                  additionalProperties: false
+                  minProperties: 1
+      responses:
+        '200':
+          description: The store
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Store'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       operationId: disconnectStore
       summary: Disconnect a store
@@ -4027,6 +4086,7 @@ components:
       - status
       - scopes
       - backfill
+      - settings
       properties:
         id:
           type: string
@@ -4113,6 +4173,23 @@ components:
               type:
               - string
               - 'null'
+        settings:
+          type: object
+          description: What Trik writes back to the store.
+          properties:
+            tag_orders:
+              type: boolean
+              description: Tag orders `trik-confirmed` / `trik-cancelled` (default on)
+            write_address:
+              type: boolean
+              description: Send an address fixed in Trik to the store, keeping its name and phone (default on)
+            cancel_in_store:
+              type: boolean
+              description: Cancel the order in the store (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)
+          required:
+          - tag_orders
+          - write_address
+          - cancel_in_store
     PrivacyRequest:
       title: PrivacyRequest
       type: object

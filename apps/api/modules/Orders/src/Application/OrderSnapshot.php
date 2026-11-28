@@ -22,6 +22,11 @@ final readonly class OrderSnapshot
         public string $currency,
         public bool $addressNeedsFix,
         public ?DateTimeInterface $placedAt = null,
+        public ?string $source = null,
+        public ?string $externalId = null,
+        /** @var array<string, string|null> the structured address (Address::toArray) */
+        public array $address = [],
+        public bool $addressFixed = false,
     ) {}
 
     public function isCod(): bool

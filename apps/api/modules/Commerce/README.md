@@ -97,6 +97,22 @@ status: the data outlives an uninstall) gets a privacy request in the Compliance
 modules (see its README). `shop/redact` is skipped where the store is active again (reinstalled within Shopify's 48 hours).
 Unknown shops are acknowledged with 200, as Shopify's review tests the endpoint with made-up shops.
 
+## Write-back (#116, #344)
+
+When something happens to a Shopify order **in Trik** (an agent, the confirmation engine), `WriteBackListener` queues
+`WriteBackShopifyOrder`, which reads the order's state when it runs (a burst collapses into one write):
+
+| In Trik | In Shopify | Setting (`PATCH /v1/commerce/stores/{store}`) |
+|---|---|---|
+| Confirmed | tag `trik-confirmed` (and `trik-cancelled` removed) | `tag_orders`, default on |
+| Cancelled | tag `trik-cancelled` (and `trik-confirmed` removed) | `tag_orders`, default on |
+| Cancelled | `orderCancel`: restocked, no refund, customer not emailed, staff note "Cancelled in Trik"; skipped if Shopify already cancelled it | `cancel_in_store`, **default off** |
+| Address fixed | the shipping address, keeping Shopify's name, phone and postcode (`orderUpdate` replaces the whole address) | `write_address`, default on |
+
+Each write, or Shopify's refusal, lands on the order timeline (`store_updated`, `store_update_failed`). Throttling and outages
+retry; a revoked token marks the store uninstalled. **No loops:** `OrderChanged` carries an `origin`; changes Trik applied
+from a store (`RecordOrder`) have it set and are never written back, so Shopify's own `orders/updated` echo stops there.
+
 ## Not yet
 
-Status and address write-back to Shopify; products and stock.
+Products and stock; editing items from chat (`PATCH /orders` doesn't change items yet).

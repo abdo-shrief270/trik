@@ -287,6 +287,12 @@ r = call("DELETE", f"/v1/commerce/stores/{store_id}", AGENT["token"], A["ws"])
 check("an agent cannot disconnect the store", r.status_code == 403, r.status_code)
 r = call("GET", "/v1/commerce/stores", A["token"], A["ws"])
 check("store listing never returns the token", r.status_code == 200 and "access_token" not in r.text, r.text[:160])
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", B["token"], B["ws"], {"settings": {"cancel_in_store": True}})
+check("another workspace cannot change a store's write-back (IDOR)", r.status_code == 404, r.status_code)
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", AGENT["token"], A["ws"], {"settings": {"cancel_in_store": True}})
+check("an agent cannot turn on cancelling orders in the store", r.status_code == 403, r.status_code)
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", A["token"], A["ws"], {"settings": {"access_token": "x", "status": "active"}})
+check("store settings refuse unknown fields (no mass assignment)", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
 
 order = {"id": 990000000 + int(uuid.uuid4().int % 1000000), "name": "#P1", "created_at": "2026-11-27T10:00:00Z", "updated_at": "2026-11-27T10:00:00Z",
          "financial_status": "pending", "currency": "EGP", "current_total_price": "100.00",
