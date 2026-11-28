@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Workspaces\Http\Controllers\InvitationController;
+use Modules\Workspaces\Http\Controllers\JoinController;
 use Modules\Workspaces\Http\Controllers\MemberController;
 use Modules\Workspaces\Http\Controllers\OrganizationController;
 use Modules\Workspaces\Http\Controllers\OrganizationMemberController;
@@ -26,6 +28,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::patch('members/{user}', [MemberController::class, 'update'])->middleware('can:workspace.members.manage')->whereUuid('user')->name('members.update');
         Route::delete('members/{user}', [MemberController::class, 'destroy'])->whereUuid('user')->name('members.destroy');
 
+        Route::get('invitations', [InvitationController::class, 'index'])->middleware('can:workspace.members.view')->name('invitations.index');
+        // sending mail from trik.chat: a verified sender, few per hour, and the open-invitation cap (Invitations)
+        Route::post('invitations', [InvitationController::class, 'store'])
+            ->middleware(['can:workspace.members.manage', 'verified.email', 'throttle:20,60', 'idempotency:required'])->name('invitations.store');
+        Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])
+            ->middleware('can:workspace.members.manage')->whereUuid('invitation')->name('invitations.destroy');
+
         Route::get('audit', [WorkspaceAuditController::class, 'index'])->middleware('can:workspace.audit.view')->name('audit.index');
 
         Route::get('roles', [RoleController::class, 'index'])->middleware('can:workspace.members.view')->name('roles.index');
@@ -35,6 +44,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::delete('roles/{role}', [RoleController::class, 'destroy'])->whereUuid('role')->name('roles.destroy');
         });
     });
+});
+
+// The invitation link: public preview (the token is the secret), joining needs a signed-in account.
+Route::prefix('invitations/{token}')->where(['token' => '[A-Za-z0-9_-]{43}'])->name('workspaces.join.')->group(function (): void {
+    Route::get('/', [JoinController::class, 'show'])->middleware('throttle:30,1')->name('show');
+    Route::post('accept', [JoinController::class, 'accept'])->middleware(['auth:sanctum', 'throttle:10,1'])->name('accept');
 });
 
 Route::middleware(['auth:sanctum', 'organization'])->prefix('organization')->name('organizations.')->group(function (): void {
