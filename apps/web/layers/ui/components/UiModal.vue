@@ -26,8 +26,8 @@ function onBackdrop(e: MouseEvent) {
   <dialog
     ref="dialog"
     :aria-labelledby="titleId"
-    class="m-0 max-h-none max-w-none bg-transparent p-0 backdrop:bg-ink/45 backdrop:backdrop-blur-[2px]"
-    :class="props.side ? 'ms-auto h-dvh w-full max-w-md' : 'm-auto w-[calc(100%-2rem)]'"
+    class="max-h-none bg-transparent p-0 backdrop:bg-ink/45 backdrop:backdrop-blur-[2px]"
+    :class="props.side ? 'm-0 ms-auto h-dvh w-full max-w-md' : 'm-auto w-[calc(100%-2rem)] max-w-none'"
     @close="open = false"
     @click="onBackdrop"
   >
