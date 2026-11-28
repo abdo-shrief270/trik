@@ -19,5 +19,8 @@ final readonly class OrderChanged
         public ?OrderStatus $from = null,
         public ?OrderStatus $to = null,
         public ?string $actorId = null,
+        // where the change came from: a store ("shopify"…) when RecordOrder applied the store's update,
+        // null when it was made in Trik (an agent, the confirmation engine). Write-back listens to null only.
+        public ?string $origin = null,
     ) {}
 }

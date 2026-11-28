@@ -52,6 +52,13 @@ final class ConfirmationEngine
             return null;
         }
 
+        // An order placed long ago (a store backfill, a late import) is not asked about out of the blue:
+        // the customer would get "confirm your order" for something they bought weeks ago.
+        $maxAge = (int) config('trik.confirmation.max_order_age_hours', 48);
+        if ($order->placedAt !== null && $order->placedAt < now()->subHours($maxAge)) {
+            return null;
+        }
+
         $run = ConfirmationRun::query()->firstOrCreate(['order_id' => $orderId], [
             'status' => RunStatus::Pending,
             'next_action_at' => now(),

@@ -92,7 +92,7 @@ final class RecordOrder
         });
 
         if ($change !== null) {
-            $this->events->publish(new OrderChanged($order->workspace_id, $order->id, $change, $from, $from !== null ? $order->status : null, $actorId));
+            $this->events->publish(new OrderChanged($order->workspace_id, $order->id, $change, $from, $from !== null ? $order->status : null, $actorId, $input->source === OrderSource::Chat ? null : $input->source->value));
             $this->notifier->changed($order);
         }
 

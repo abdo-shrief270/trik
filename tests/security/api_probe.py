@@ -19,6 +19,7 @@ import requests
 ap = argparse.ArgumentParser()
 ap.add_argument("base")
 ap.add_argument("--db", required=True, help="libpq connection string for seeding members")
+ap.add_argument("--shopify-secret", default="probe-shopify-secret", help="SHOPIFY_CLIENT_SECRET of the app under test")
 args = ap.parse_args()
 BASE = args.base.rstrip("/")
 results = []
@@ -237,6 +238,138 @@ r = call("POST", f"/webhooks/whatsapp/fake/{uuid.uuid4()}", raw=big)
 check("oversized webhook body refused before any work", r.status_code == 413, f"{r.status_code} for a 3 MB body")
 codes = {call("POST", f"/webhooks/whatsapp/fake/{uuid.uuid4()}", body={}).status_code for _ in range(400)}
 check("webhook endpoint throttles floods of bad requests", 429 in codes, f"400 junk requests got {sorted(codes)}")
+
+# ---------------- store connectors (Shopify)
+import base64 as _b64
+import hashlib
+import hmac as _hmac
+import time
+
+SHOP = f"probe-{uuid.uuid4().hex[:8]}.myshopify.com"
+AGENT = member(A["ws"], "agent")
+
+
+def shopify_hook(topic, payload, shop=SHOP, secret=None, delivery=None):
+    raw = json.dumps(payload)
+    sig = _b64.b64encode(_hmac.new((secret or args.shopify_secret).encode(), raw.encode(), hashlib.sha256).digest()).decode()
+    return call("POST", "/webhooks/shopify", raw=raw, headers={
+        "X-Shopify-Topic": topic, "X-Shopify-Shop-Domain": shop, "X-Shopify-Hmac-Sha256": sig,
+        "X-Shopify-Webhook-Id": delivery or str(uuid.uuid4())})
+
+
+r = call("POST", "/v1/commerce/shopify/install", AGENT["token"], A["ws"], {"shop": SHOP})
+check("an agent cannot connect a store", r.status_code == 403, r.status_code)
+for evil in ["x.myshopify.com.evil.io", "evil.io", "x.myshopify.com@evil.io", "x.myshopify.com:444", "127.0.0.1", "169.254.169.254"]:
+    r = call("POST", "/v1/commerce/shopify/install", A["token"], A["ws"], {"shop": evil})
+    check(f"install refuses a non-Shopify host ({evil})", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("POST", "/v1/commerce/shopify/install", A["token"], A["ws"], {"shop": SHOP})
+check("install returns Shopify's consent URL for the shop only", r.status_code == 200 and r.json()["data"]["authorize_url"].startswith(f"https://{SHOP}/admin/oauth/authorize?"), f"{r.status_code} {r.text[:160]}")
+
+q = f"code=c&shop={SHOP}&state=forged&timestamp={int(time.time())}&hmac=" + "0" * 64
+r = requests.get(BASE + "/webhooks/shopify/oauth/callback?" + q, allow_redirects=False, timeout=30)
+check("forged OAuth callback is refused", r.status_code in (302, 303) and "shopify_error=invalid-signature" in r.headers.get("Location", ""), f"{r.status_code} {r.headers.get('Location')}")
+r = requests.get(BASE + f"/webhooks/shopify/app?shop={SHOP}&timestamp={int(time.time())}&hmac=" + "0" * 64, allow_redirects=False, timeout=30)
+check("forged app launch is refused", "shopify_error=invalid-signature" in r.headers.get("Location", ""), f"{r.status_code} {r.headers.get('Location')}")
+
+store_id = str(uuid.uuid4())
+sql(f"insert into commerce_stores (id, workspace_id, platform, shop_domain, scopes, status, backfill, created_at, updated_at) "
+    f"values ('{store_id}', '{A['ws']}', 'shopify', '{SHOP}', 'read_orders', 'active', '{{}}', now(), now())")
+
+r = call("GET", "/v1/commerce/stores", B["token"], B["ws"])
+check("another workspace does not see the store", r.status_code == 200 and all(s["id"] != store_id for s in r.json()["data"]), r.text[:160])
+r = call("GET", "/v1/commerce/stores", B["token"], A["ws"])
+check("a non-member cannot list a workspace's stores", r.status_code in (403, 404), r.status_code)
+r = call("DELETE", f"/v1/commerce/stores/{store_id}", B["token"], B["ws"])
+check("another workspace cannot disconnect the store (IDOR)", r.status_code == 404, r.status_code)
+r = call("POST", f"/v1/commerce/stores/{store_id}/backfill", B["token"], B["ws"], {}, headers={"Idempotency-Key": str(uuid.uuid4())})
+check("another workspace cannot re-import the store (IDOR)", r.status_code == 404, r.status_code)
+r = call("DELETE", f"/v1/commerce/stores/{store_id}", AGENT["token"], A["ws"])
+check("an agent cannot disconnect the store", r.status_code == 403, r.status_code)
+r = call("GET", "/v1/commerce/stores", A["token"], A["ws"])
+check("store listing never returns the token", r.status_code == 200 and "access_token" not in r.text, r.text[:160])
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", B["token"], B["ws"], {"settings": {"cancel_in_store": True}})
+check("another workspace cannot change a store's write-back (IDOR)", r.status_code == 404, r.status_code)
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", AGENT["token"], A["ws"], {"settings": {"cancel_in_store": True}})
+check("an agent cannot turn on cancelling orders in the store", r.status_code == 403, r.status_code)
+r = call("PATCH", f"/v1/commerce/stores/{store_id}", A["token"], A["ws"], {"settings": {"access_token": "x", "status": "active"}})
+check("store settings refuse unknown fields (no mass assignment)", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+
+order = {"id": 990000000 + int(uuid.uuid4().int % 1000000), "name": "#P1", "created_at": "2026-11-27T10:00:00Z", "updated_at": "2026-11-27T10:00:00Z",
+         "financial_status": "pending", "currency": "EGP", "current_total_price": "100.00",
+         "shipping_address": {"phone": "01012345678", "address1": "x", "city": "y", "province_code": "C", "country_code": "EG"},
+         "line_items": [{"id": 1, "title": "t", "quantity": 1, "price": "100.00"}]}
+r = shopify_hook("orders/create", order, secret="attacker")
+check("Shopify webhook with a wrong signature is refused", r.status_code == 401, r.status_code)
+r = call("POST", "/webhooks/shopify", raw=json.dumps(order), headers={"X-Shopify-Topic": "orders/create", "X-Shopify-Shop-Domain": SHOP})
+check("Shopify webhook without a signature is refused", r.status_code == 401, r.status_code)
+r = shopify_hook("orders/create", order, shop="evil.io")
+check("Shopify webhook with a forged shop header is refused", r.status_code == 400, r.status_code)
+delivery = str(uuid.uuid4())
+r1 = shopify_hook("orders/create", order, delivery=delivery)
+r2 = shopify_hook("orders/create", order, delivery=delivery)
+stored = sql(f"select count(*) || ' ' || coalesce(string_agg(distinct workspace_id::text, ','), '') from commerce_webhook_events where store_id = '{store_id}'")
+check("a signed delivery is stored once, in the store's workspace, however often it is sent",
+      r1.status_code == 200 and r2.status_code == 200 and stored == f"1 {A['ws']}", f"{r1.status_code} {r2.status_code} stored={stored}")
+time.sleep(3)
+landed = sql(f"select string_agg(distinct workspace_id::text, ',') from orders_orders where source = 'shopify' and external_id = '{order['id']}'")
+# processed only where a queue worker runs: never in another workspace
+check("the order never lands in another workspace", landed in ("", A["ws"]), f"landed in {landed}")
+
+# ---------------- EasyOrders
+r = call("POST", "/v1/commerce/easyorders/install", AGENT["token"], A["ws"])
+check("an agent cannot start an EasyOrders install", r.status_code == 403, r.status_code)
+r = call("POST", f"/webhooks/easyorders/install/{uuid.uuid4().hex}{uuid.uuid4().hex[:16]}", body={"api_key": "attacker", "store_id": str(uuid.uuid4())})
+check("a forged EasyOrders install callback is refused", r.status_code == 404, f"{r.status_code} {r.text[:120]}")
+r = call("POST", f"/webhooks/easyorders/{uuid.uuid4().hex}{uuid.uuid4().hex[:16]}", body={"id": str(uuid.uuid4())})
+check("an unknown EasyOrders webhook URL is refused", r.status_code == 404, r.status_code)
+r = call("POST", "/v1/commerce/easyorders/install", A["token"], A["ws"])
+eo_url = r.json().get("data", {}).get("install_url", "") if r.status_code == 200 else ""
+check("the EasyOrders install link only points at EasyOrders", eo_url.startswith("https://app.easy-orders.net/#/install-app?"), eo_url[:80])
+eo_store = str(uuid.uuid4())
+sql(f"insert into commerce_stores (id, workspace_id, platform, shop_domain, scopes, status, backfill, settings, created_at, updated_at) "
+    f"values ('{eo_store}', '{A['ws']}', 'easyorders', '{uuid.uuid4()}', 'orders:read', 'active', '{{}}', '{{}}', now(), now())")
+r = call("PATCH", f"/v1/commerce/stores/{eo_store}", A["token"], A["ws"], {"settings": {"cancel_in_store": True}})
+check("a setting of another platform is refused", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("PATCH", f"/v1/commerce/stores/{eo_store}", B["token"], B["ws"], {"settings": {"write_status": False}})
+check("another workspace cannot change an EasyOrders store (IDOR)", r.status_code == 404, r.status_code)
+
+# ---------------- refusal risk
+r = call("PUT", "/v1/risk/settings", AGENT["token"], A["ws"], {"threshold": 99})
+check("an agent cannot change the risk threshold", r.status_code == 403, r.status_code)
+r = call("PUT", "/v1/risk/settings", A["token"], A["ws"], {"weights": {"first_order": 500, "is_admin": 1}})
+check("risk weights are bounded and unknown rules refused", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("PUT", "/v1/risk/settings", B["token"], A["ws"], {"threshold": 1})
+check("a non-member cannot change another workspace's risk settings", r.status_code in (403, 404), r.status_code)
+risk_order = sql(f"select id from orders_orders where workspace_id = '{A['ws']}' limit 1")
+if risk_order:
+    r = call("GET", f"/v1/orders/{risk_order}/risk", B["token"], B["ws"])
+    check("another workspace cannot read an order's risk (IDOR)", r.status_code == 404, r.status_code)
+
+# ---------------- privacy requests (Shopify's mandatory webhooks)
+def privacy_hook(topic, payload, secret=None, delivery=None):
+    raw = json.dumps({"shop_id": 1, "shop_domain": SHOP, **payload})
+    sig = _b64.b64encode(_hmac.new((secret or args.shopify_secret).encode(), raw.encode(), hashlib.sha256).digest()).decode()
+    return call("POST", "/webhooks/shopify/compliance", raw=raw, headers={
+        "X-Shopify-Topic": topic, "X-Shopify-Shop-Domain": SHOP, "X-Shopify-Hmac-Sha256": sig,
+        "X-Shopify-Webhook-Id": delivery or str(uuid.uuid4())})
+
+
+r = privacy_hook("customers/redact", {"customer": {"phone": "01012345678"}, "orders_to_redact": []}, secret="attacker")
+check("privacy webhook with a wrong signature is refused", r.status_code == 401, r.status_code)
+r = call("POST", "/webhooks/shopify/compliance", raw=json.dumps({"shop_domain": SHOP}), headers={"X-Shopify-Topic": "shop/redact", "X-Shopify-Shop-Domain": SHOP})
+check("privacy webhook without a signature is refused", r.status_code == 401, r.status_code)
+r = privacy_hook("customers/data_request", {"customer": {"phone": "01012345678"}, "orders_requested": [order["id"]], "data_request": {"id": 1}})
+pr = sql(f"select string_agg(workspace_id::text || ':' || id::text, ',') from compliance_requests where origin_ref = '{SHOP}'")
+check("a signed privacy request lands in the store's workspace only", r.status_code == 200 and pr.count(",") == 0 and pr.startswith(A["ws"] + ":"), f"{r.status_code} {pr}")
+PR_ID = pr.split(":")[1] if ":" in pr else str(uuid.uuid4())
+r = call("GET", f"/v1/compliance/requests/{PR_ID}/export", B["token"], B["ws"])
+check("another workspace cannot read a privacy export (IDOR)", r.status_code == 404, r.status_code)
+r = call("GET", "/v1/compliance/requests", B["token"], B["ws"])
+check("another workspace does not see the privacy request", r.status_code == 200 and PR_ID not in r.text, r.text[:160])
+r = call("GET", f"/v1/compliance/requests/{PR_ID}/export", AGENT["token"], A["ws"])
+check("an agent cannot download a customer's data export", r.status_code == 403, r.status_code)
+r = call("GET", "/v1/compliance/requests", A["token"], A["ws"])
+check("privacy requests never name the customer", r.status_code == 200 and "01012345678" not in r.text and "201012345678" not in r.text, r.text[:160])
 
 # ---------------- transport and browser
 r = requests.options(BASE + "/v1/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})

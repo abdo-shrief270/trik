@@ -20,6 +20,12 @@ tags:
 - name: Inbox
 - name: Orders
 - name: Confirmation
+- name: Commerce
+  description: 'Store connectors: Shopify (#332), then EasyOrders (#117). Orders arrive through webhooks and an initial backfill.'
+- name: Compliance
+  description: 'Privacy requests from store platforms (Shopify''s mandatory customers/data_request, customers/redact and shop/redact webhooks at `POST /webhooks/shopify/compliance`, #333): data exports for the store owner and redaction across modules, recorded in the workspace audit log.'
+- name: Risk
+  description: 'Refusal risk (#115): a score 0–100 per order from the seller''s own data only (the customer''s history with this seller and the order itself), from explainable rules whose points sum to the score. Scored on creation and edits, and when one of the customer''s orders ends. Also on `Order.risk_score`, which the board filters on (`min_risk`).'
 paths:
   /auth/register:
     post:
@@ -2665,6 +2671,495 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /commerce/stores:
+    get:
+      operationId: listStores
+      summary: The workspace's connected stores
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.view
+      description: Requires `commerce.stores.view`. Newest first, at most 50 (a workspace has a handful). Never includes access tokens. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+      responses:
+        '200':
+          description: Stores
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Store'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/shopify/install:
+    post:
+      operationId: installShopify
+      summary: Start connecting a Shopify store (OAuth)
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Returns the Shopify consent URL to send the browser to. Shopify then redirects to `GET /webhooks/shopify/oauth/callback`, which checks Shopify''s HMAC, the shop, the age (10 minutes), the single-use state and that the member still has `commerce.stores.manage`, stores the token encrypted, starts the order backfill, and sends the browser to `{web}/settings/stores?shopify=connected&store=<id>` (or `?shopify_error=<code>`: `invalid-signature`, `invalid-shop`, `expired`, `shop-mismatch`, `forbidden`, `store-connected-elsewhere`, `denied`, `shopify-error`). 409 `store-connected-elsewhere` when another workspace has this shop; 503 `shopify-not-configured`. 10 per minute. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - shop
+              properties:
+                shop:
+                  type: string
+                  maxLength: 255
+                  description: The store's myshopify.com address; "laila" or a full admin URL also work. Custom domains are refused (422).
+                  examples:
+                  - laila-fashion.myshopify.com
+      responses:
+        '200':
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - authorize_url
+                    - shop_domain
+                    properties:
+                      authorize_url:
+                        type: string
+                        format: uri
+                      shop_domain:
+                        type: string
+                        examples:
+                        - laila-fashion.myshopify.com
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/easyorders/install:
+    post:
+      operationId: installEasyOrders
+      summary: Start connecting an EasyOrders store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Returns EasyOrders'' authorized-app link to send the browser to. When the seller accepts, EasyOrders creates an API key (`orders:read,orders:update`) and the order webhooks, then POSTs `{api_key, store_id}` to `POST /webhooks/easyorders/install/{token}`: the token is single-use, lives 30 minutes and remembers the workspace and the member, whose permission is checked again. The webhook URL carries the store''s own token (only its SHA-256 is kept). EasyOrders signs neither, so every webhook is only a hint: Trik reads the order back with the store''s key. EasyOrders has no way to list orders, so there is no backfill. 10 per minute. Returns 404 where store connectors are not rolled out yet.'
+      responses:
+        '200':
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - install_url
+                    properties:
+                      install_url:
+                        type: string
+                        format: uri
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/stores/{store}:
+    patch:
+      operationId: updateStore
+      summary: Choose what Trik writes back to the store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Only the settings given change. Write-back happens for changes made in Trik (an agent, the confirmation engine): a confirmation or cancellation, or a fixed address. It runs on the queue, and each write (or refusal) appears on the order timeline as `store_updated` / `store_update_failed`. Changes that came from the store are never written back. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - settings
+              properties:
+                settings:
+                  type: object
+                  minProperties: 1
+                  additionalProperties: false
+                  properties:
+                    tag_orders:
+                      type: boolean
+                      description: 'Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on)'
+                    write_address:
+                      type: boolean
+                      description: 'Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on'
+                    cancel_in_store:
+                      type: boolean
+                      description: 'Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)'
+                    write_status:
+                      type: boolean
+                      description: 'EasyOrders: set the order status to `confirmed` / `canceled` (default on)'
+                  description: Only the store's platform keys are accepted (422 otherwise).
+      responses:
+        '200':
+          description: The store
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Store'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: disconnectStore
+      summary: Disconnect a store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: Requires `commerce.stores.manage`. Drops the token and stops routing the store's webhooks here; orders already imported stay. The app stays installed in the store until the seller removes it there. Idempotent. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+      responses:
+        '204':
+          description: Disconnected
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/stores/{store}/backfill:
+    post:
+      operationId: backfillStore
+      summary: Import the store's recent orders again
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Runs after a failure, or once Shopify grants `read_all_orders` (90 days instead of 60). Safe to repeat: imports are idempotent and never overwrite a newer version of an order. Imported orders placed more than 48 hours ago are never sent a confirmation message. 409 `store-not-connected`, `backfill-running`, `backfill-unsupported` (EasyOrders: no way to list past orders). Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Store'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /compliance/requests:
+    get:
+      operationId: listPrivacyRequests
+      summary: Privacy requests received for the workspace
+      tags:
+      - Compliance
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: compliance.requests.view
+      description: 'Requires `compliance.requests.view`. Newest first, the last 100. Never names the customer: the subject is stored encrypted and cleared once the request is done.'
+      responses:
+        '200':
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrivacyRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /compliance/requests/{privacyRequest}/export:
+    get:
+      operationId: downloadPrivacyExport
+      summary: Download a customer's data export
+      tags:
+      - Compliance
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: privacyRequest
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: compliance.requests.export
+      description: 'Requires `compliance.requests.export` (personal data: owners and admins). What Trik holds about the customer, per module (`orders`, `contacts`…), for the store owner to hand over. Sent as an attachment, `Cache-Control: no-store`; the download is audited. Kept encrypted for 30 days, then 404 `export-not-available`. 30 per minute.'
+      responses:
+        '200':
+          description: The export
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      requested_at:
+                        type: string
+                        format: date-time
+                      origin:
+                        type: string
+                        examples:
+                        - shopify
+                      origin_ref:
+                        type:
+                        - string
+                        - 'null'
+                        examples:
+                        - laila-fashion.myshopify.com
+                      orders:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      contacts:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /orders/{order}/risk:
+    get:
+      operationId: getOrderRisk
+      summary: An order's refusal risk, and why
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires `orders.orders.view`. 404 `risk-not-scored` before the order is scored. `top` is the three biggest reasons (not the baseline); `reasons` all of them, whose points sum to the score (before clamping to 0–100). The first time a score reaches the threshold, a `risk_flagged` entry lands on the order timeline. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      responses:
+        '200':
+          description: The risk
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrderRisk'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /risk/settings:
+    get:
+      operationId: getRiskSettings
+      summary: The refusal risk threshold and weights
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: risk.settings.view
+      description: Requires `risk.settings.view`. The weights in effect (defaults plus the seller's changes) and the defaults. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RiskSettings'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateRiskSettings
+      summary: Change the threshold or weights
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: risk.settings.manage
+      description: Requires `risk.settings.manage`. Only the fields given change; weights are points per rule (−50…50). Open orders are scored again with them (queued, the most recent 2,000). Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                threshold:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                weights:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    baseline:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    refused_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    cancelled_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    unreachable_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    delivered_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    first_order:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    high_value:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    address_incomplete:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    address_flagged:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    late_night:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RiskSettings'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -3768,3 +4263,317 @@ components:
           - string
           - 'null'
           format: date-time
+    Store:
+      title: Store
+      type: object
+      required:
+      - id
+      - platform
+      - shop_domain
+      - status
+      - scopes
+      - backfill
+      - settings
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum:
+          - shopify
+          - easyorders
+        shop_domain:
+          type: string
+          examples:
+          - laila-fashion.myshopify.com
+          description: 'Shopify: the myshopify.com domain. EasyOrders: the store id'
+        name:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum:
+          - active
+          - uninstalled
+          - disconnected
+          description: '`uninstalled`: the app was removed in the store (or its token stopped working); `disconnected`: disconnected from Trik.'
+        scopes:
+          type: array
+          items:
+            type: string
+          description: As granted by the store
+        installed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        uninstalled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_webhook_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Last delivery from the store (updated at most once a minute)
+        backfill:
+          type: object
+          required:
+          - status
+          - imported
+          - skipped
+          properties:
+            status:
+              type: string
+              enum:
+              - none
+              - queued
+              - running
+              - importing
+              - done
+              - failed
+              - unsupported
+            since:
+              type:
+              - string
+              - 'null'
+              format: date-time
+              description: Orders placed since this time
+            imported:
+              type: integer
+            skipped:
+              type: integer
+              description: Orders Trik cannot take (no usable phone number, no items)
+            started_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            finished_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            error:
+              type:
+              - string
+              - 'null'
+        settings:
+          type: object
+          description: What Trik writes back to the store; the keys depend on the platform.
+          properties:
+            tag_orders:
+              type: boolean
+              description: 'Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on)'
+            write_address:
+              type: boolean
+              description: 'Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on'
+            cancel_in_store:
+              type: boolean
+              description: 'Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)'
+            write_status:
+              type: boolean
+              description: 'EasyOrders: set the order status to `confirmed` / `canceled` (default on)'
+    PrivacyRequest:
+      title: PrivacyRequest
+      type: object
+      required:
+      - id
+      - kind
+      - origin
+      - status
+      - result
+      - export_available
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - data_request
+          - customer_redact
+          - shop_redact
+        origin:
+          type: string
+          examples:
+          - shopify
+        origin_ref:
+          type:
+          - string
+          - 'null'
+          description: e.g. the shop domain
+        status:
+          type: string
+          enum:
+          - pending
+          - done
+          - failed
+        result:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Records exported or redacted, per module
+        export_available:
+          type: boolean
+        export_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    RiskReason:
+      type: object
+      required:
+      - code
+      - points
+      - params
+      - text
+      properties:
+        code:
+          type: string
+          enum:
+          - baseline
+          - refused_before
+          - cancelled_before
+          - unreachable_before
+          - delivered_before
+          - first_order
+          - high_value
+          - address_incomplete
+          - address_flagged
+          - late_night
+          - prepaid
+        points:
+          type: integer
+        params:
+          type: object
+          additionalProperties:
+            type: number
+          description: e.g. count, amount and usual (minor units), ratio, hour
+        text:
+          type: object
+          required:
+          - ar
+          - en
+          properties:
+            ar:
+              type: string
+            en:
+              type: string
+          description: Plain words, e.g. "Refused 2 earlier order(s) at the door"
+    OrderRisk:
+      title: OrderRisk
+      type: object
+      required:
+      - order_id
+      - score
+      - threshold
+      - flagged
+      - top
+      - reasons
+      - model
+      - computed_at
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        threshold:
+          type: integer
+        flagged:
+          type: boolean
+          description: score ≥ threshold
+        top:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/RiskReason'
+        reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskReason'
+        model:
+          type: string
+          examples:
+          - rules-v1
+        computed_at:
+          type: string
+          format: date-time
+    RiskSettings:
+      title: RiskSettings
+      type: object
+      required:
+      - threshold
+      - weights
+      - defaults
+      properties:
+        threshold:
+          type: integer
+          description: Orders scoring this or more are flagged
+        weights:
+          type: object
+          properties:
+            baseline:
+              type: integer
+            refused_before:
+              type: integer
+            cancelled_before:
+              type: integer
+            unreachable_before:
+              type: integer
+            delivered_before:
+              type: integer
+            first_order:
+              type: integer
+            high_value:
+              type: integer
+            address_incomplete:
+              type: integer
+            address_flagged:
+              type: integer
+            late_night:
+              type: integer
+        defaults:
+          type: object
+          properties:
+            threshold:
+              type: integer
+            weights:
+              type: object
+              properties:
+                baseline:
+                  type: integer
+                refused_before:
+                  type: integer
+                cancelled_before:
+                  type: integer
+                unreachable_before:
+                  type: integer
+                delivered_before:
+                  type: integer
+                first_order:
+                  type: integer
+                high_value:
+                  type: integer
+                address_incomplete:
+                  type: integer
+                address_flagged:
+                  type: integer
+                late_night:
+                  type: integer

@@ -18,8 +18,17 @@ return [
 
     // Features still being rolled out: 'all', 'none', or a comma-separated list of workspace ids
     // (pilot sellers first). Checked by the "feature:<name>" middleware.
+    // Confirmation never starts for an order placed longer ago than this (store backfills, late imports).
+    'confirmation' => [
+        'max_order_age_hours' => (int) env('CONFIRMATION_MAX_ORDER_AGE_HOURS', 48),
+    ],
+
     'features' => [
         'inbox' => env('FEATURE_INBOX', 'all'),
         'orders' => env('FEATURE_ORDERS', 'all'),
+        // Store connectors (Shopify): pilot sellers first.
+        'commerce' => env('FEATURE_COMMERCE', 'none'),
+        // Refusal risk score (#115).
+        'risk' => env('FEATURE_RISK', 'none'),
     ],
 ];

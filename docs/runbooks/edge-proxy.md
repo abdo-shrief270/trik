@@ -1,5 +1,9 @@
 # Edge and proxy setup
 
+> **The live configuration is [`infra/edge/Caddyfile`](../../infra/edge/Caddyfile)** (the `trik-edge` image,
+> see [deploy.md](deploy.md)). There the edge is its own container on a fixed address and the API trusts only
+> it: `TRUSTED_PROXIES=172.30.0.10`. The principles below still apply; the snippets are the original sketch.
+
 Traffic path: **Cloudflare → Caddy (same host as the app, TLS) → Octane on 127.0.0.1:8080**.
 
 The app trusts `X-Forwarded-*` only from `TRUSTED_PROXIES` (default `127.0.0.1,::1`). This matters:
