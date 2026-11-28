@@ -50,7 +50,9 @@ jobs:
           context: .
           file: infra/edge/Dockerfile
           push: true
-          build-args: WHATSAPP_NUMBER=${{ vars.WHATSAPP_NUMBER }}
+          build-args: |
+            WHATSAPP_NUMBER=${{ vars.WHATSAPP_NUMBER }}
+            API_DOMAIN=api.trik.chat
           tags: ${{ env.REGISTRY }}/trik-edge:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=edge
           cache-to: type=gha,mode=max,scope=edge

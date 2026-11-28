@@ -14,6 +14,10 @@ ci_deploy_key: ""
 ssh_allow_from: []
 
 swap_size_mb: 4096
+
+# Features rolled out per workspace: 'all', 'none', or comma-separated workspace ids (pilot sellers first).
+feature_commerce: none
+feature_risk: none
 app_dir: /srv/trik
 
 # Cloudflare's ranges are fetched live on every run (the same list as infra/edge/cloudflare-ips.caddy).

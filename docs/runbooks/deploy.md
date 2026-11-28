@@ -11,19 +11,38 @@ Cloudflare sits in front; the server accepts HTTPS **only from Cloudflare** and 
 | Releases | `.github/workflows/deploy.yml` → `deploy.sh <tag>` on the server |
 | Edge (TLS, routing, headers, landing) | `infra/edge/` (built into the `trik-edge` image) |
 
-## First setup (once)
+## First setup (once): the launch checklist
 
-1. **Cloudflare** (proxied, orange cloud), with `trik.chat` already on Cloudflare's nameservers:
+Three addresses, all behind Cloudflare: `trik.chat` (landing), `app.trik.chat` (the web app), `api.trik.chat` (API and
+real time). The server's IP is never published: Cloudflare is in front before the first DNS record exists.
+
+0. **Code on `main`.** Merge the open PRs in the order listed in `CLAUDE.md` ("Where things stand"); the last one is the
+   launch PR. Releases deploy from `main`.
+1. **Domain (Hostinger → Domains → trik.chat):**
+   - turn **privacy protection (WHOIS privacy)** on;
+   - remove Hostinger's default DNS records for the domain (parking page, mail), if any.
+2. **Cloudflare** (a free account; add `trik.chat`, then set the two Cloudflare nameservers in Hostinger → Domains →
+   DNS / Nameservers → *Change nameservers*; it takes minutes to a few hours):
    - SSL/TLS: **Full (strict)**, Always Use HTTPS, minimum TLS 1.2.
-   - SSL/TLS → Origin Server → **Create certificate** for `trik.chat, *.trik.chat` (15 years). Keep the
-     certificate and key for the vault.
-   - Don't add DNS records yet (step 5).
-2. **GitHub**:
+   - SSL/TLS → Origin Server → **Create certificate** for `trik.chat, *.trik.chat` (15 years). Keep the certificate and
+     key for the vault.
+   - Don't add `A` records yet (step 8).
+3. **Server (Hostinger → VPS → KVM 4):**
+   - OS: **Ubuntu 24.04** (a fresh install wipes the disk), with your SSH public key added for root;
+   - note the IP; in the VPS **firewall** allow only TCP 22 and 443 (Ansible locks 443 to Cloudflare's ranges);
+   - take a **snapshot** after step 6 (until pgBackRest backups exist).
+4. **Email, sending only** (verification and password resets; no mailbox needed):
+   - a free account at a transactional provider (Resend: 3,000 emails a month free; or Brevo);
+   - add the domain `trik.chat` there and copy its **DNS records** (SPF `TXT`, DKIM `TXT`/`CNAME`, and a DMARC `TXT`
+     such as `v=DMARC1; p=quarantine`) into Cloudflare, **DNS only** (grey cloud) for these;
+   - once verified, the SMTP host, user and password go into the vault (`mail_smtp_*`).
+   Without it, `MAIL_MAILER=log`: nobody can verify their email, so keep sign-up to people you set up by hand.
+5. **GitHub**:
    - A fine-grained token with *packages: read* for the server (`ghcr_token`).
    - An SSH key pair for CI: `ssh-keygen -t ed25519 -f trik-ci -C trik-ci`. The private key goes in the
      repository secret `DEPLOY_SSH_KEY`, the public key in `ci_deploy_key` (vars.yml).
    - Environment **production**: add yourself as a required reviewer (each release waits for your approval).
-3. **Ansible** (from any machine with Ansible ≥ 2.17 and the `community.general` and `ansible.posix` collections):
+6. **Ansible** (from any machine with Ansible ≥ 2.17 and the `community.general` and `ansible.posix` collections):
    ```bash
    cd infra/ansible
    cp inventory.example.ini inventory.ini        # the server's IP
@@ -32,11 +51,16 @@ Cloudflare sits in front; the server accepts HTTPS **only from Cloudflare** and 
    ansible-playbook -i inventory.ini site.yml --ask-vault-pass          # first run, as root
    ```
    From then on root SSH is off: `-e ansible_user=deploy`.
-4. **Deploy secrets in GitHub**: `DEPLOY_HOST` (the IP), `DEPLOY_KNOWN_HOSTS`
+7. **Deploy secrets in GitHub**: `DEPLOY_HOST` (the IP), `DEPLOY_KNOWN_HOSTS`
    (`ssh-keyscan -t ed25519 <ip>`), and the variables `WHATSAPP_NUMBER` and `DEPLOY_ENABLED=true`.
    Run the **Deploy** workflow. The first run creates the database, its three roles and all tables.
-5. **DNS** in Cloudflare, all **proxied**: `A trik.chat → <ip>`, `CNAME www → trik.chat`,
-   `A api → <ip>`. Check `https://trik.chat` and `https://api.trik.chat/readyz`.
+8. **DNS** in Cloudflare, all **proxied** (orange cloud): `A trik.chat → <ip>`, `CNAME www → trik.chat`,
+   `A app → <ip>`, `A api → <ip>`. Check `https://trik.chat`, `https://app.trik.chat` and
+   `https://api.trik.chat/readyz`.
+9. **Pilot switches:** `feature_commerce` and `feature_risk` in `vars.yml` are `none`; set them to the pilot workspace
+   ids (comma-separated) or `all`, and the Shopify app's `shopify_client_id` / `shopify_client_secret` in the vault
+   (Commerce README). Re-run Ansible (it rewrites `app.env`; don't edit it by hand), then on the server
+   `docker compose up -d api worker scheduler`.
 
 ## Releases
 
@@ -84,7 +108,7 @@ docker compose exec postgres psql -U postgres trik
 
 ## Before public sign-up
 
-- **Email:** `MAIL_MAILER=log` until a provider is set (verification and password reset need it).
+- **Email:** set up in step 4 (otherwise `MAIL_MAILER=log`: verification and password resets don't go out).
 - **Backups:** pgBackRest to S3 (ADR 0011) is not set up yet. Until it is, take a Hostinger snapshot
   before each release that has migrations.
 - **Monitoring:** uptime checks from outside (KVM 1) are not set up yet.
