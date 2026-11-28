@@ -21,7 +21,8 @@ ones, and expects security, load and edge cases checked before he merges.
 
 - **API:** Laravel 13 on PHP 8.5, Octane (FrankenPHP in prod, Swoole locally/CI), Sanctum, Pest, Larastan
   level 8, Pint. PostgreSQL 19, Redis 8. `apps/api`.
-- **Web:** Nuxt 4 (`apps/web`). **Mobile:** Flutter (`apps/mobile`). **Go services** for hot paths later (`services/`).
+- **Web:** Nuxt 4 (`apps/web`). **Landing:** static Nuxt 4 + GSAP/Lenis (`apps/landing`, trik.chat).
+  **Mobile:** Flutter (`apps/mobile`). **Go services** for hot paths later (`services/`).
 - **Hosting:** Hostinger VPS first, AWS later (ADR 0011). WhatsApp through a BSP (360dialog) first (ADR 0009).
 
 ## Backend architecture (apps/api)
@@ -117,20 +118,20 @@ Done and merged on `main`:
 - organizations above workspaces (#366), and organization roles, people and audit logs (#367);
 - the inbox, badges, Orders, the confirmation engine and the confirmation board APIs (#379–#383).
 
-Open PRs, stacked; merge in this order (each retargets by itself):
-1. #389 web foundation (`apps/web`: shell, auth, design system, typed client)
-2. #390 web inbox
-3. #391 web confirmation board and confirmation rules
-4. #392 web orders (list, order page, new order) + boolean query filters accept `true`/`false`
+Open PRs, merge in this order (each retargets by itself):
+1. #386 landing site (`apps/landing`), then #388 production deploy (`infra/`, on #386).
+2. API stack: #393 Shopify app → #394 privacy webhooks → #395 Shopify write-back → #396 EasyOrders → #397 risk score.
+3. Web stack: #389 foundation → #390 inbox → #391 confirmation board → #392 orders.
+4. #398 web settings (stores, risk, privacy; merges the API stack in) → #399 pilot results → the launch PR
+   (`feat/launch`: merges #388, serves the web app at `app.trik.chat`, SMTP for email).
+#387 waitlist API: to close (there is no waitlist).
 
-Separate: #386 landing site (`apps/landing`), #388 production deploy (`infra/`, on #386), #387 waitlist API (to close:
-there is no waitlist). Web work branches from the top of the web stack (`feat/web-orders`) while it's open.
+Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. Every call to action opens a WhatsApp
+chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`). No public email address yet. Keep the copy in
+`apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only for "confirmed", never on light).
 
-Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
-- **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC
-  webhooks (orders/create, orders/updated, fulfillments, app/uninstalled), 90-day backfill. Orders go through
-  `Orders\Application\RecordOrder` (idempotent per source + external id). Then mandatory privacy webhooks (#333)
-  and status / address write-back.
-- **EasyOrders (#117)**, the same shape.
-- **Refusal risk score (#115)**: fills `orders_orders.risk_score`, which the board already filters on.
-- **Pilot results (#345), web app screens (#34–#37), infra tasks (#346, #350, #352, #360–#362).**
+Launch: `docs/runbooks/deploy.md` (server, Cloudflare, DNS, email, first deploy). Feature flags `commerce` and `risk`
+default to `none`: turn them on per pilot workspace.
+
+Next: pilot installs (#335) once the Shopify app exists; infra (#346, #350, #352, #360–#362, mostly needs the server);
+real time (a Centrifugo connection-token endpoint) to replace polling; team invites; the mobile app.
