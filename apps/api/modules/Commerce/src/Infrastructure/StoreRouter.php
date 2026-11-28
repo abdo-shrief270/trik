@@ -20,4 +20,20 @@ final class StoreRouter
 
         return $row === null ? null : ['workspace_id' => (string) $row->workspace_id, 'store_id' => (string) $row->store_id];
     }
+
+    /**
+     * Every store record of a shop, any status and workspace (privacy requests).
+     *
+     * @return list<array{workspace_id: string, store_id: string, status: string}>
+     */
+    public function history(Platform $platform, string $shopDomain): array
+    {
+        $stores = [];
+        foreach (DB::select('select workspace_id, store_id, status from commerce_store_history(?, ?)', [$platform->value, $shopDomain]) as $row) {
+            $r = get_object_vars($row);
+            $stores[] = ['workspace_id' => (string) $r['workspace_id'], 'store_id' => (string) $r['store_id'], 'status' => (string) $r['status']];
+        }
+
+        return $stores;
+    }
 }

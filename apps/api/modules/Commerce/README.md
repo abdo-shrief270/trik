@@ -89,7 +89,14 @@ Owners and admins have both; agents neither.
 |---|---|
 | (through `RecordOrder`: `OrderChanged`) | — |
 
+## Privacy webhooks (#333)
+
+`POST /webhooks/shopify/compliance` takes Shopify's mandatory `customers/data_request`, `customers/redact` and `shop/redact`.
+Verified like any webhook (401 otherwise), then **every workspace that ever held the shop** (`commerce_store_history()`, any
+status: the data outlives an uninstall) gets a privacy request in the Compliance module, which exports or redacts across
+modules (see its README). `shop/redact` is skipped where the store is active again (reinstalled within Shopify's 48 hours).
+Unknown shops are acknowledged with 200, as Shopify's review tests the endpoint with made-up shops.
+
 ## Not yet
 
-Mandatory privacy webhooks (`customers/data_request`, `customers/redact`, `shop/redact`, #333) before any App Store review; status
-and address write-back to Shopify; products and stock.
+Status and address write-back to Shopify; products and stock.

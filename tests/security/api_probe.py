@@ -309,6 +309,32 @@ landed = sql(f"select string_agg(distinct workspace_id::text, ',') from orders_o
 # processed only where a queue worker runs: never in another workspace
 check("the order never lands in another workspace", landed in ("", A["ws"]), f"landed in {landed}")
 
+# ---------------- privacy requests (Shopify's mandatory webhooks)
+def privacy_hook(topic, payload, secret=None, delivery=None):
+    raw = json.dumps({"shop_id": 1, "shop_domain": SHOP, **payload})
+    sig = _b64.b64encode(_hmac.new((secret or args.shopify_secret).encode(), raw.encode(), hashlib.sha256).digest()).decode()
+    return call("POST", "/webhooks/shopify/compliance", raw=raw, headers={
+        "X-Shopify-Topic": topic, "X-Shopify-Shop-Domain": SHOP, "X-Shopify-Hmac-Sha256": sig,
+        "X-Shopify-Webhook-Id": delivery or str(uuid.uuid4())})
+
+
+r = privacy_hook("customers/redact", {"customer": {"phone": "01012345678"}, "orders_to_redact": []}, secret="attacker")
+check("privacy webhook with a wrong signature is refused", r.status_code == 401, r.status_code)
+r = call("POST", "/webhooks/shopify/compliance", raw=json.dumps({"shop_domain": SHOP}), headers={"X-Shopify-Topic": "shop/redact", "X-Shopify-Shop-Domain": SHOP})
+check("privacy webhook without a signature is refused", r.status_code == 401, r.status_code)
+r = privacy_hook("customers/data_request", {"customer": {"phone": "01012345678"}, "orders_requested": [order["id"]], "data_request": {"id": 1}})
+pr = sql(f"select string_agg(workspace_id::text || ':' || id::text, ',') from compliance_requests where origin_ref = '{SHOP}'")
+check("a signed privacy request lands in the store's workspace only", r.status_code == 200 and pr.count(",") == 0 and pr.startswith(A["ws"] + ":"), f"{r.status_code} {pr}")
+PR_ID = pr.split(":")[1] if ":" in pr else str(uuid.uuid4())
+r = call("GET", f"/v1/compliance/requests/{PR_ID}/export", B["token"], B["ws"])
+check("another workspace cannot read a privacy export (IDOR)", r.status_code == 404, r.status_code)
+r = call("GET", "/v1/compliance/requests", B["token"], B["ws"])
+check("another workspace does not see the privacy request", r.status_code == 200 and PR_ID not in r.text, r.text[:160])
+r = call("GET", f"/v1/compliance/requests/{PR_ID}/export", AGENT["token"], A["ws"])
+check("an agent cannot download a customer's data export", r.status_code == 403, r.status_code)
+r = call("GET", "/v1/compliance/requests", A["token"], A["ws"])
+check("privacy requests never name the customer", r.status_code == 200 and "01012345678" not in r.text and "201012345678" not in r.text, r.text[:160])
+
 # ---------------- transport and browser
 r = requests.options(BASE + "/v1/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
 check("CORS does not allow arbitrary origins", r.headers.get("Access-Control-Allow-Origin") not in ("*", "https://evil.example"), r.headers.get("Access-Control-Allow-Origin"))

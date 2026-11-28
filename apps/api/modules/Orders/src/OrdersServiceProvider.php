@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Modules\Orders;
 
 use App\Support\Modules\ModuleServiceProvider;
+use App\Support\Privacy\PersonalDataRegistry;
+use Modules\Orders\Application\OrdersPersonalData;
 
 /** Orders from every source in one shape, the order card in chat, confirm / cancel, address fixes. */
 final class OrdersServiceProvider extends ModuleServiceProvider
@@ -17,5 +19,10 @@ final class OrdersServiceProvider extends ModuleServiceProvider
             'orders.orders.update' => 'Fix addresses and edit notes on orders',
             'orders.orders.confirm' => 'Confirm and cancel orders',
         ];
+    }
+
+    protected function bootModule(): void
+    {
+        app(PersonalDataRegistry::class)->register(OrdersPersonalData::class);
     }
 }

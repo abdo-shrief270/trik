@@ -22,6 +22,8 @@ tags:
 - name: Confirmation
 - name: Commerce
   description: 'Store connectors: Shopify (#332), then EasyOrders (#117). Orders arrive through webhooks and an initial backfill.'
+- name: Compliance
+  description: 'Privacy requests from store platforms (Shopify''s mandatory customers/data_request, customers/redact and shop/redact webhooks at `POST /webhooks/shopify/compliance`, #333): data exports for the store owner and redaction across modules, recorded in the workspace audit log.'
 paths:
   /auth/register:
     post:
@@ -2821,6 +2823,97 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /compliance/requests:
+    get:
+      operationId: listPrivacyRequests
+      summary: Privacy requests received for the workspace
+      tags:
+      - Compliance
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: compliance.requests.view
+      description: 'Requires `compliance.requests.view`. Newest first, the last 100. Never names the customer: the subject is stored encrypted and cleared once the request is done.'
+      responses:
+        '200':
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PrivacyRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /compliance/requests/{privacyRequest}/export:
+    get:
+      operationId: downloadPrivacyExport
+      summary: Download a customer's data export
+      tags:
+      - Compliance
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: privacyRequest
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: compliance.requests.export
+      description: 'Requires `compliance.requests.export` (personal data: owners and admins). What Trik holds about the customer, per module (`orders`, `contacts`…), for the store owner to hand over. Sent as an attachment, `Cache-Control: no-store`; the download is audited. Kept encrypted for 30 days, then 404 `export-not-available`. 30 per minute.'
+      responses:
+        '200':
+          description: The export
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      requested_at:
+                        type: string
+                        format: date-time
+                      origin:
+                        type: string
+                        examples:
+                        - shopify
+                      origin_ref:
+                        type:
+                        - string
+                        - 'null'
+                        examples:
+                        - laila-fashion.myshopify.com
+                      orders:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      contacts:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -4020,3 +4113,59 @@ components:
               type:
               - string
               - 'null'
+    PrivacyRequest:
+      title: PrivacyRequest
+      type: object
+      required:
+      - id
+      - kind
+      - origin
+      - status
+      - result
+      - export_available
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - data_request
+          - customer_redact
+          - shop_redact
+        origin:
+          type: string
+          examples:
+          - shopify
+        origin_ref:
+          type:
+          - string
+          - 'null'
+          description: e.g. the shop domain
+        status:
+          type: string
+          enum:
+          - pending
+          - done
+          - failed
+        result:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Records exported or redacted, per module
+        export_available:
+          type: boolean
+        export_expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time

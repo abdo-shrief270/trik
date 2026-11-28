@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Commerce\Http\Controllers;
 
 use App\Support\Http\Problem;
+use App\Support\Privacy\DataSubject;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,13 +19,18 @@ use Modules\Commerce\Application\Shopify\ShopifyWebhookHandler;
 use Modules\Commerce\Domain\Platform;
 use Modules\Commerce\Domain\Shopify\ShopDomain;
 use Modules\Commerce\Domain\Shopify\ShopifySignature;
+use Modules\Commerce\Domain\StoreStatus;
 use Modules\Commerce\Infrastructure\StoreRouter;
+use Modules\Compliance\Application\RecordPrivacyRequest;
+use Modules\Compliance\Domain\RequestKind;
+use Modules\WhatsApp\Domain\PhoneNumber;
 
 /**
  * Everything Shopify calls (no session, no Trik auth; Shopify's HMAC is the authentication):
  *  - GET  /webhooks/shopify/app             the app URL (install link, Shopify admin): back to the web app
  *  - GET  /webhooks/shopify/oauth/callback  the end of the OAuth grant
  *  - POST /webhooks/shopify                 every webhook topic (X-Shopify-Topic)
+ *  - POST /webhooks/shopify/compliance      the mandatory privacy webhooks
  */
 final class ShopifyController
 {
@@ -90,6 +96,65 @@ final class ShopifyController
         $delivery = (string) ($request->header('X-Shopify-Webhook-Id') ?: $request->header('X-Shopify-Event-Id') ?: hash('sha256', $topic.$body));
 
         $context->run($route['workspace_id'], fn () => $accept->handle($route['store_id'], $topic, $delivery, $payload));
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Shopify's mandatory privacy webhooks (#333). Verified like any webhook; then every workspace that
+     * ever held this shop gets its own privacy request (an uninstalled store still holds orders).
+     * shop/redact is skipped where the store was reinstalled meanwhile (Shopify only sends it 48 hours
+     * after an uninstall, but the seller may have come back since). Always 200 once verified.
+     */
+    public function compliance(Request $request, StoreRouter $router, TenantContext $context, RecordPrivacyRequest $record): JsonResponse
+    {
+        $this->refuseIfFlooding($request);
+        $body = $request->getContent();
+
+        if (! ShopifySignature::verifyWebhook($body, (string) $request->header('X-Shopify-Hmac-Sha256', ''), ShopifyInstall::secrets())) {
+            RateLimiter::hit($this->failureKey($request), 60);
+
+            throw Problem::make(401, 'invalid-signature', 'Invalid signature.');
+        }
+
+        $kind = match (strtolower((string) $request->header('X-Shopify-Topic', ''))) {
+            'customers/data_request' => RequestKind::DataRequest,
+            'customers/redact' => RequestKind::CustomerRedact,
+            'shop/redact' => RequestKind::ShopRedact,
+            default => null,
+        };
+        $payload = json_decode($body, true);
+        if ($kind === null || ! is_array($payload)) {
+            return response()->json(['ok' => true, 'ignored' => 'topic']);
+        }
+
+        try {
+            $shop = ShopDomain::fromShopify((string) ($request->header('X-Shopify-Shop-Domain') ?: ($payload['shop_domain'] ?? '')));
+        } catch (InvalidArgumentException) {
+            throw Problem::badRequest('invalid-shop', 'Missing or invalid shop domain.');
+        }
+
+        $phone = data_get($payload, 'customer.phone');
+        $phones = [];
+        if (is_string($phone) && trim($phone) !== '') {
+            try {
+                $phones[] = PhoneNumber::fromString($phone)->digits;
+            } catch (InvalidArgumentException) {
+                // not a number we could hold anyway
+            }
+        }
+        $orders = data_get($payload, $kind === RequestKind::DataRequest ? 'orders_requested' : 'orders_to_redact');
+        $orderIds = is_array($orders) ? array_values(array_map('strval', array_filter($orders, fn (mixed $id): bool => is_int($id) || (is_string($id) && ctype_digit($id))))) : [];
+        $delivery = (string) ($request->header('X-Shopify-Webhook-Id') ?: hash('sha256', $kind->value.$body));
+
+        foreach ($router->history(Platform::Shopify, $shop->value) as $store) {
+            if ($kind === RequestKind::ShopRedact && $store['status'] === StoreStatus::Active->value) {
+                continue;
+            }
+
+            $subject = new DataSubject($phones, 'shopify', $orderIds, $store['store_id'], $kind === RequestKind::ShopRedact);
+            $context->run($store['workspace_id'], fn () => $record->handle($kind, 'shopify', $shop->value, $delivery, $subject));
+        }
 
         return response()->json(['ok' => true]);
     }

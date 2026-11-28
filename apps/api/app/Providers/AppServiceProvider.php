@@ -8,6 +8,7 @@ use App\Support\Authorization\PermissionGate;
 use App\Support\Authorization\PermissionRegistry;
 use App\Support\Events\EventPublisher;
 use App\Support\Events\LaravelEventPublisher;
+use App\Support\Privacy\PersonalDataRegistry;
 use App\Support\Realtime\CentrifugoRealtime;
 use App\Support\Realtime\NullRealtime;
 use App\Support\Realtime\Realtime;
@@ -39,6 +40,7 @@ final class AppServiceProvider extends ServiceProvider
                 : new NullRealtime;
         });
         $this->app->singleton(PermissionRegistry::class);
+        $this->app->singleton(PersonalDataRegistry::class);
         $this->app->scoped(PermissionGate::class);
     }
 
