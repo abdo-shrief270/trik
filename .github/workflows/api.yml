@@ -85,6 +85,7 @@ jobs:
           MAIL_MAILER: log
           PGPASSWORD: trik
           FEATURE_COMMERCE: all
+          FEATURE_RISK: all
           SHOPIFY_CLIENT_ID: probe-client
           SHOPIFY_CLIENT_SECRET: probe-shopify-secret
         run: |
