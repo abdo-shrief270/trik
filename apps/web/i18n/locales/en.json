@@ -435,7 +435,17 @@
       "address_unflagged": "Address flag cleared",
       "note_changed": "Note changed",
       "other": "Updated",
-      "owner_changed": "Owner changed"
+      "owner_changed": "Owner changed",
+      "confirmation_sent": "Confirmation sent on WhatsApp",
+      "confirmation_reminder": "Reminder sent",
+      "confirmation_reply": "Customer replied",
+      "confirmation_escalated": "Moved to \"Needs a call\"",
+      "confirmation_failed": "Confirmation couldn't be sent",
+      "needs_call": "Needs a call",
+      "needs_call_cleared": "Call done",
+      "store_updated": "Updated in {store}",
+      "store_update_failed": "{store} didn't take the update",
+      "risk_flagged": "Flagged: refusal risk {score}"
     }
   },
   "rules": {
@@ -550,6 +560,213 @@
       "phone": "Enter a valid phone number.",
       "quantity": "A whole number, 1 or more.",
       "money": "Enter an amount, e.g. 1,250."
+    }
+  },
+  "settingsNav": {
+    "account": "Account",
+    "stores": "Stores",
+    "confirmation": "Confirmation rules",
+    "risk": "Refusal risk",
+    "privacy": "Privacy requests"
+  },
+  "stores": {
+    "title": "Connected stores",
+    "sub": "Orders from your stores arrive in Trik by themselves, and Trik tells the store what happened.",
+    "unavailable": {
+      "title": "Store connections are coming",
+      "body": "Connecting Shopify and EasyOrders is being rolled out to sellers in stages."
+    },
+    "empty": {
+      "title": "No store connected yet",
+      "body": "Connect your store and its orders arrive here to be confirmed on WhatsApp."
+    },
+    "status": {
+      "active": "Connected",
+      "uninstalled": "App removed",
+      "disconnected": "Disconnected"
+    },
+    "uninstalledHint": "Trik's app was removed from this store, so orders stopped arriving. Connect it again to resume.",
+    "import": "First import",
+    "lastHeard": "Last heard from the store",
+    "notYet": "Not yet",
+    "backfill": {
+      "none": "Not started",
+      "preparing": "Getting your recent orders ready…",
+      "importing": "Importing… {n} orders so far",
+      "done": "{n} orders imported since {since}",
+      "doneSkipped": "{n} orders imported since {since}; {skipped} without a phone number skipped",
+      "failed": "The import didn't finish.",
+      "unsupported": "EasyOrders can’t share past orders; new orders arrive from now on."
+    },
+    "writeBack": "What Trik tells the store",
+    "settings": {
+      "shopify": {
+        "tag_orders": {
+          "label": "Tag confirmed and cancelled orders",
+          "hint": "Adds trik-confirmed or trik-cancelled to the order in Shopify."
+        },
+        "write_address": {
+          "label": "Send fixed addresses",
+          "hint": "Replaces the order's shipping address, keeping the customer's name and phone."
+        },
+        "cancel_in_store": {
+          "label": "Cancel in Shopify too",
+          "hint": "Cancels the order there and puts the items back in stock. No refund, no email to the customer."
+        }
+      },
+      "easyorders": {
+        "write_status": {
+          "label": "Update the order status",
+          "hint": "Sets the order to confirmed or canceled in EasyOrders."
+        },
+        "write_address": {
+          "label": "Add fixed addresses as a note",
+          "hint": "EasyOrders can't edit addresses, so Trik adds a private note."
+        }
+      }
+    },
+    "saved": "Saved.",
+    "reimport": "Import recent orders again",
+    "backfillStarted": "The import started.",
+    "reconnect": "Connect again",
+    "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect {name}?",
+    "keep": "Keep it connected",
+    "disconnectBody": "New orders stop arriving and Trik stops updating the store. Orders already in Trik stay. You can remove Trik's app from the store's admin too.",
+    "disconnected": "{name} disconnected.",
+    "connect": "Connect a store",
+    "shopifyHint": "Shopify asks you to approve Trik, then your last 90 days of orders are imported.",
+    "shopLabel": "Store address",
+    "shopHint": "Your myshopify.com address, e.g. laila.myshopify.com",
+    "shopInvalid": "Enter your myshopify.com address, e.g. laila.myshopify.com.",
+    "connectShopify": "Connect Shopify",
+    "easyordersHint": "EasyOrders asks you to approve Trik, then new orders arrive as they are placed.",
+    "connectEasyOrders": "Connect EasyOrders",
+    "readOnly": "You can see the stores, but your role can't connect or change them.",
+    "arriving": {
+      "title": "Connect {shop}?",
+      "body": "Its orders will arrive in {workspace}.",
+      "connect": "Connect",
+      "notNow": "Not now"
+    },
+    "connected": {
+      "shopify": "Shopify connected. Your recent orders are being imported.",
+      "easyorders": "EasyOrders connected. New orders will arrive as they are placed."
+    },
+    "errors": {
+      "invalid-signature": "Shopify's answer couldn't be verified. Try connecting again.",
+      "invalid-shop": "That isn't a Shopify store address.",
+      "expired": "The connection took too long. Try again.",
+      "shop-mismatch": "Shopify answered for another store. Try again.",
+      "forbidden": "Your role can't connect stores.",
+      "store-connected-elsewhere": "This store is connected to another Trik workspace. Disconnect it there first.",
+      "denied": "The store wasn't connected: the approval was cancelled.",
+      "shopify-error": "Shopify didn't finish the connection. Try again in a minute.",
+      "shopify-not-configured": "Shopify isn't set up on this server yet.",
+      "backfill-running": "The orders are already being imported.",
+      "backfill-unsupported": "This store can't share past orders.",
+      "store-not-connected": "Connect the store again first."
+    },
+    "unnamed": "{platform} store"
+  },
+  "risk": {
+    "title": "Refusal risk",
+    "sub": "Every cash-on-delivery order gets a score from 0 to 100 for how likely it is to be refused, from your own orders only. Each rule adds or takes points; you can change them.",
+    "unavailable": {
+      "title": "Refusal risk is coming",
+      "body": "Risk scores are being rolled out to sellers in stages."
+    },
+    "threshold": "Flag orders from",
+    "thresholdHint": "Orders scoring this or more are flagged on the board and their timeline.",
+    "thresholdRange": "Between 1 and 100.",
+    "rules": "Rules",
+    "rulesHint": "Points each rule adds (or takes away). Between −50 and 50.",
+    "rule": "Rule",
+    "default": "Default",
+    "points": "Points",
+    "reset": "Reset",
+    "range": "Between −50 and 50.",
+    "save": "Save and rescore orders",
+    "saved": "Saved. Open orders are being scored again.",
+    "readOnly": "You can see the rules, but your role can't change them.",
+    "rule_": {
+      "baseline": {
+        "label": "Starting point",
+        "hint": "Every order starts here."
+      },
+      "first_order": {
+        "label": "First order",
+        "hint": "The customer hasn't ordered from you before."
+      },
+      "refused_before": {
+        "label": "Refused before",
+        "hint": "Per earlier order refused at the door (two counted)."
+      },
+      "cancelled_before": {
+        "label": "Cancelled before",
+        "hint": "Per earlier cancelled order (two counted)."
+      },
+      "unreachable_before": {
+        "label": "Didn't answer before",
+        "hint": "Per earlier order where they never answered the confirmation (two counted)."
+      },
+      "delivered_before": {
+        "label": "Received before",
+        "hint": "Per earlier delivered order (three counted). Negative lowers the risk."
+      },
+      "high_value": {
+        "label": "Large order",
+        "hint": "Twice your usual order amount or more (half the points at 1.5×)."
+      },
+      "address_incomplete": {
+        "label": "Incomplete address",
+        "hint": "No governorate or street to deliver to."
+      },
+      "address_flagged": {
+        "label": "Address flagged",
+        "hint": "An agent flagged the address to fix."
+      },
+      "late_night": {
+        "label": "Late at night",
+        "hint": "Placed between midnight and 6 am."
+      }
+    }
+  },
+  "orderRisk": {
+    "title": "Refusal risk",
+    "level": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "flagged": "Above your flag line ({n}).",
+    "threshold": "Your flag line is {n}."
+  },
+  "privacy": {
+    "title": "Privacy requests",
+    "sub": "Requests from your store platforms to share or erase a customer's data. Trik handles them by itself; data requests need you to send the file to the store owner or customer.",
+    "empty": {
+      "title": "No privacy requests",
+      "body": "When Shopify sends a data or erasure request, it shows here."
+    },
+    "kind": {
+      "data_request": "Customer data request",
+      "customer_redact": "Customer erasure",
+      "shop_redact": "Store erasure"
+    },
+    "status": {
+      "pending": "In progress",
+      "done": "Done",
+      "failed": "Failed"
+    },
+    "from": "From {origin}",
+    "download": "Download the data",
+    "until": "Available until {date}",
+    "expired": "The file has expired.",
+    "count": {
+      "orders": "one order | {n} orders",
+      "contacts": "one contact | {n} contacts",
+      "stores": "one store record | {n} store records"
     }
   }
 }

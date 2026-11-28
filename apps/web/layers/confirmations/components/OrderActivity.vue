@@ -27,6 +27,7 @@ const when = (iso?: string | null) => {
   return short === clock ? clock : `${short} · ${clock}`
 }
 const statusName = (s: string) => (s ? t(`order.status.${s}`, s) : '')
+const storeName = (s?: string) => ({ shopify: 'Shopify', easyorders: 'EasyOrders' } as Record<string, string>)[s ?? ''] ?? s ?? ''
 const actor = (id?: string | null) => (id ? (id === session.user?.id ? t('inbox.youName') : null) : null)
 </script>
 
@@ -50,7 +51,7 @@ const actor = (id?: string | null) => (id ? (id === session.user?.id ? t('inbox.
         <li v-for="(e, i) in data.timeline" :key="i" class="relative">
           <span class="absolute -start-[1.4rem] top-1.5 size-2.5 rounded-full bg-indigo" aria-hidden="true" />
           <p class="text-[15px]">
-            {{ t(eventView(e).key, { from: statusName(eventView(e).params.from ?? ''), to: statusName(eventView(e).params.to ?? '') }) }}
+            {{ t(eventView(e).key, { ...eventView(e).params, from: statusName(eventView(e).params.from ?? ''), to: statusName(eventView(e).params.to ?? ''), store: storeName(eventView(e).params.store) }) }}
           </p>
           <p class="text-sm text-muted"><time :datetime="e.at">{{ when(e.at) }}</time><template v-if="actor(e.actor_id)"> · {{ actor(e.actor_id) }}</template></p>
         </li>

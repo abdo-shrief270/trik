@@ -32,9 +32,10 @@ const fmt = (iso: string | null | undefined) =>
 
 <template>
   <div class="mx-auto w-full max-w-3xl px-8 py-10">
-    <h1 class="font-display text-4xl font-bold tracking-[-0.03em]">{{ t('nav.settings') }}</h1>
+    <h1 class="mb-6 font-display text-4xl font-bold tracking-[-0.03em]">{{ t('nav.settings') }}</h1>
+    <SettingsNav />
 
-    <section class="mt-10 rounded-2xl border border-line bg-white p-6" aria-labelledby="account">
+    <section class="rounded-2xl border border-line bg-white p-6" aria-labelledby="account">
       <h2 id="account" class="text-lg font-bold">{{ t('settings.account') }}</h2>
       <dl class="mt-5 grid gap-4 sm:grid-cols-2">
         <div><dt class="text-sm text-muted">{{ t('auth.name') }}</dt><dd class="mt-1 font-semibold">{{ session.user?.name }}</dd></div>

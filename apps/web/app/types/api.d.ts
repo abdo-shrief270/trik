@@ -931,6 +931,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/commerce/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The workspace's connected stores
+         * @description Requires `commerce.stores.view`. Newest first, at most 50 (a workspace has a handful). Never includes access tokens. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+         */
+        get: operations["listStores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commerce/shopify/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start connecting a Shopify store (OAuth)
+         * @description Requires `commerce.stores.manage`. Returns the Shopify consent URL to send the browser to. Shopify then redirects to `GET /webhooks/shopify/oauth/callback`, which checks Shopify's HMAC, the shop, the age (10 minutes), the single-use state and that the member still has `commerce.stores.manage`, stores the token encrypted, starts the order backfill, and sends the browser to `{web}/settings/stores?shopify=connected&store=<id>` (or `?shopify_error=<code>`: `invalid-signature`, `invalid-shop`, `expired`, `shop-mismatch`, `forbidden`, `store-connected-elsewhere`, `denied`, `shopify-error`). 409 `store-connected-elsewhere` when another workspace has this shop; 503 `shopify-not-configured`. 10 per minute. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+         */
+        post: operations["installShopify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commerce/easyorders/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start connecting an EasyOrders store
+         * @description Requires `commerce.stores.manage`. Returns EasyOrders' authorized-app link to send the browser to. When the seller accepts, EasyOrders creates an API key (`orders:read,orders:update`) and the order webhooks, then POSTs `{api_key, store_id}` to `POST /webhooks/easyorders/install/{token}`: the token is single-use, lives 30 minutes and remembers the workspace and the member, whose permission is checked again. The webhook URL carries the store's own token (only its SHA-256 is kept). EasyOrders signs neither, so every webhook is only a hint: Trik reads the order back with the store's key. EasyOrders has no way to list orders, so there is no backfill. 10 per minute. Returns 404 where store connectors are not rolled out yet.
+         */
+        post: operations["installEasyOrders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commerce/stores/{store}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect a store
+         * @description Requires `commerce.stores.manage`. Drops the token and stops routing the store's webhooks here; orders already imported stay. The app stays installed in the store until the seller removes it there. Idempotent. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+         */
+        delete: operations["disconnectStore"];
+        options?: never;
+        head?: never;
+        /**
+         * Choose what Trik writes back to the store
+         * @description Requires `commerce.stores.manage`. Only the settings given change. Write-back happens for changes made in Trik (an agent, the confirmation engine): a confirmation or cancellation, or a fixed address. It runs on the queue, and each write (or refusal) appears on the order timeline as `store_updated` / `store_update_failed`. Changes that came from the store are never written back. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+         */
+        patch: operations["updateStore"];
+        trace?: never;
+    };
+    "/commerce/stores/{store}/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import the store's recent orders again
+         * @description Requires `commerce.stores.manage`. Runs after a failure, or once Shopify grants `read_all_orders` (90 days instead of 60). Safe to repeat: imports are idempotent and never overwrite a newer version of an order. Imported orders placed more than 48 hours ago are never sent a confirmation message. 409 `store-not-connected`, `backfill-running`, `backfill-unsupported` (EasyOrders: no way to list past orders). Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+         */
+        post: operations["backfillStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Privacy requests received for the workspace
+         * @description Requires `compliance.requests.view`. Newest first, the last 100. Never names the customer: the subject is stored encrypted and cleared once the request is done.
+         */
+        get: operations["listPrivacyRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/requests/{privacyRequest}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a customer's data export
+         * @description Requires `compliance.requests.export` (personal data: owners and admins). What Trik holds about the customer, per module (`orders`, `contacts`…), for the store owner to hand over. Sent as an attachment, `Cache-Control: no-store`; the download is audited. Kept encrypted for 30 days, then 404 `export-not-available`. 30 per minute.
+         */
+        get: operations["downloadPrivacyExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{order}/risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An order's refusal risk, and why
+         * @description Requires `orders.orders.view`. 404 `risk-not-scored` before the order is scored. `top` is the three biggest reasons (not the baseline); `reasons` all of them, whose points sum to the score (before clamping to 0–100). The first time a score reaches the threshold, a `risk_flagged` entry lands on the order timeline. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+         */
+        get: operations["getOrderRisk"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risk/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The refusal risk threshold and weights
+         * @description Requires `risk.settings.view`. The weights in effect (defaults plus the seller's changes) and the defaults. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+         */
+        get: operations["getRiskSettings"];
+        /**
+         * Change the threshold or weights
+         * @description Requires `risk.settings.manage`. Only the fields given change; weights are points per rule (−50…50). Open orders are scored again with them (queued, the most recent 2,000). Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+         */
+        put: operations["updateRiskSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1369,6 +1557,148 @@ export interface components {
             resolved_at?: string | null;
             /** Format: date-time */
             created_at?: string | null;
+        };
+        /** Store */
+        Store: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            platform: "shopify" | "easyorders";
+            /**
+             * @description Shopify: the myshopify.com domain. EasyOrders: the store id
+             * @example laila-fashion.myshopify.com
+             */
+            shop_domain: string;
+            name?: string | null;
+            /**
+             * @description `uninstalled`: the app was removed in the store (or its token stopped working); `disconnected`: disconnected from Trik.
+             * @enum {string}
+             */
+            status: "active" | "uninstalled" | "disconnected";
+            /** @description As granted by the store */
+            scopes: string[];
+            /** Format: date-time */
+            installed_at?: string | null;
+            /** Format: date-time */
+            uninstalled_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Last delivery from the store (updated at most once a minute)
+             */
+            last_webhook_at?: string | null;
+            backfill: {
+                /** @enum {string} */
+                status: "none" | "queued" | "running" | "importing" | "done" | "failed" | "unsupported";
+                /**
+                 * Format: date-time
+                 * @description Orders placed since this time
+                 */
+                since?: string | null;
+                imported: number;
+                /** @description Orders Trik cannot take (no usable phone number, no items) */
+                skipped: number;
+                /** Format: date-time */
+                started_at?: string | null;
+                /** Format: date-time */
+                finished_at?: string | null;
+                error?: string | null;
+            };
+            /** @description What Trik writes back to the store; the keys depend on the platform. */
+            settings: {
+                /** @description Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on) */
+                tag_orders?: boolean;
+                /** @description Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on */
+                write_address?: boolean;
+                /** @description Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off) */
+                cancel_in_store?: boolean;
+                /** @description EasyOrders: set the order status to `confirmed` / `canceled` (default on) */
+                write_status?: boolean;
+            };
+        };
+        /** PrivacyRequest */
+        PrivacyRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "data_request" | "customer_redact" | "shop_redact";
+            /** @example shopify */
+            origin: string;
+            /** @description e.g. the shop domain */
+            origin_ref?: string | null;
+            /** @enum {string} */
+            status: "pending" | "done" | "failed";
+            /** @description Records exported or redacted, per module */
+            result: {
+                [key: string]: number;
+            };
+            export_available: boolean;
+            /** Format: date-time */
+            export_expires_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            completed_at?: string | null;
+        };
+        RiskReason: {
+            /** @enum {string} */
+            code: "baseline" | "refused_before" | "cancelled_before" | "unreachable_before" | "delivered_before" | "first_order" | "high_value" | "address_incomplete" | "address_flagged" | "late_night" | "prepaid";
+            points: number;
+            /** @description e.g. count, amount and usual (minor units), ratio, hour */
+            params: {
+                [key: string]: number;
+            };
+            /** @description Plain words, e.g. "Refused 2 earlier order(s) at the door" */
+            text: {
+                ar: string;
+                en: string;
+            };
+        };
+        /** OrderRisk */
+        OrderRisk: {
+            /** Format: uuid */
+            order_id: string;
+            score: number;
+            threshold: number;
+            /** @description score ≥ threshold */
+            flagged: boolean;
+            top: components["schemas"]["RiskReason"][];
+            reasons: components["schemas"]["RiskReason"][];
+            /** @example rules-v1 */
+            model: string;
+            /** Format: date-time */
+            computed_at: string;
+        };
+        /** RiskSettings */
+        RiskSettings: {
+            /** @description Orders scoring this or more are flagged */
+            threshold: number;
+            weights: {
+                baseline?: number;
+                refused_before?: number;
+                cancelled_before?: number;
+                unreachable_before?: number;
+                delivered_before?: number;
+                first_order?: number;
+                high_value?: number;
+                address_incomplete?: number;
+                address_flagged?: number;
+                late_night?: number;
+            };
+            defaults: {
+                threshold?: number;
+                weights?: {
+                    baseline?: number;
+                    refused_before?: number;
+                    cancelled_before?: number;
+                    unreachable_before?: number;
+                    delivered_before?: number;
+                    first_order?: number;
+                    high_value?: number;
+                    address_incomplete?: number;
+                    address_flagged?: number;
+                    late_night?: number;
+                };
+            };
         };
     };
     responses: {
@@ -3605,6 +3935,398 @@ export interface operations {
                             /** @description With result=error: invalid-transition, address-needs-fix… */
                             code?: string;
                         }[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listStores: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stores */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Store"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    installShopify: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The store's myshopify.com address; "laila" or a full admin URL also work. Custom domains are refused (422).
+                     * @example laila-fashion.myshopify.com
+                     */
+                    shop: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Where to send the browser */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uri */
+                            authorize_url: string;
+                            /** @example laila-fashion.myshopify.com */
+                            shop_domain: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    installEasyOrders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Where to send the browser */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: uri */
+                            install_url: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    disconnectStore: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path: {
+                store: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateStore: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path: {
+                store: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Only the store's platform keys are accepted (422 otherwise). */
+                    settings: {
+                        /** @description Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on) */
+                        tag_orders?: boolean;
+                        /** @description Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on */
+                        write_address?: boolean;
+                        /** @description Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off) */
+                        cancel_in_store?: boolean;
+                        /** @description EasyOrders: set the order status to `confirmed` / `canceled` (default on) */
+                        write_status?: boolean;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description The store */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Store"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    backfillStore: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+                /** @description Required here. Use a new UUID per action and reuse it on retries. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKeyRequired"];
+            };
+            path: {
+                store: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Store"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listPrivacyRequests: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PrivacyRequest"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    downloadPrivacyExport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path: {
+                privacyRequest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** Format: date-time */
+                            requested_at?: string;
+                            /** @example shopify */
+                            origin?: string;
+                            /** @example laila-fashion.myshopify.com */
+                            origin_ref?: string | null;
+                            orders?: {
+                                [key: string]: unknown;
+                            }[];
+                            contacts?: {
+                                [key: string]: unknown;
+                            }[];
+                        } & {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getOrderRisk: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path: {
+                order: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The risk */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrderRisk"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getRiskSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RiskSettings"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateRiskSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    threshold?: number;
+                    weights?: {
+                        baseline?: number;
+                        refused_before?: number;
+                        cancelled_before?: number;
+                        unreachable_before?: number;
+                        delivered_before?: number;
+                        first_order?: number;
+                        high_value?: number;
+                        address_incomplete?: number;
+                        address_flagged?: number;
+                        late_night?: number;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RiskSettings"];
                     };
                 };
             };

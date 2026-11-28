@@ -264,6 +264,7 @@ async function act(action: 'confirm' | 'cancel') {
           </section>
 
           <section class="rounded-2xl border border-line bg-white p-6">
+            <OrderRisk :order-id="order.id" :refresh-key="activityKey" class="mb-6 border-b border-line pb-6" />
             <OrderActivity :order-id="order.id" :refresh-key="activityKey" />
           </section>
         </div>
