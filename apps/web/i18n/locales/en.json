@@ -30,7 +30,8 @@
     "close": "Close",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "count": "Count"
+    "count": "Count",
+    "cancel": "Cancel"
   },
   "verify": {
     "banner": "Confirm your email ({email}) to connect a WhatsApp number. Check your inbox for the link.",
@@ -52,7 +53,14 @@
     "email-not-verified": "Confirm your email first.",
     "conflict": "Someone changed this at the same time. Refresh and try again.",
     "unavailable": "Trik is briefly unavailable. Try again in a minute.",
-    "generic": "That didn't work. Try again."
+    "generic": "That didn't work. Try again.",
+    "owner-only": "Only an owner can do that.",
+    "beyond-own-permissions": "You can only give roles within your own permissions.",
+    "already-a-member": "This person is already on the team. Change their role instead.",
+    "last-owner": "A workspace needs at least one owner. Make someone else an owner first.",
+    "cannot-change-own-role": "Ask another owner or admin to change your role.",
+    "invitation-limit": "Too many open invitations. Withdraw some first.",
+    "invitation-closed": "This invitation was already used or withdrawn."
   },
   "auth": {
     "signIn": "Sign in",
@@ -568,7 +576,8 @@
     "stores": "Stores",
     "confirmation": "Confirmation rules",
     "risk": "Refusal risk",
-    "privacy": "Privacy requests"
+    "privacy": "Privacy requests",
+    "team": "Team"
   },
   "stores": {
     "title": "Connected stores",
@@ -830,5 +839,79 @@
     "cardTitle": "Your results with Trik",
     "cardSub": "Compared with your orders before Trik.",
     "see": "See the results"
+  },
+  "team": {
+    "title": "Team",
+    "sub": "Who works in this workspace, and what each person can do.",
+    "invite": "Invite",
+    "you": "you",
+    "roleOf": "Role of {name}",
+    "removeOf": "Remove {name}",
+    "invitations": "Invitations",
+    "invitationsSub": "Sent, not used yet. A link works once, for 7 days.",
+    "expiresOn": "expires {date}",
+    "expiredOn": "expired {date}",
+    "invitedBy": "by {name}",
+    "status": {
+      "pending": "Waiting",
+      "expired": "Expired",
+      "accepted": "Joined",
+      "revoked": "Withdrawn"
+    },
+    "resend": "Send again",
+    "revoke": "Withdraw",
+    "inviteTitle": "Invite someone to the team",
+    "role": "Role",
+    "roleHint": "Agents confirm orders and answer chats. Admins also manage the team and settings.",
+    "send": "Send invitation",
+    "sentTo": "Invitation sent to {email}.",
+    "linkHint": "You can also send them this link yourself, e.g. on WhatsApp. It only works for that email address.",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "shareWhatsapp": "Send on WhatsApp",
+    "shareText": "Join {workspace} on Trik:",
+    "inviteAnother": "Invite someone else",
+    "done": "Done",
+    "invited": "Invitation sent to {email}.",
+    "revoked": "Invitation to {email} withdrawn.",
+    "roleChanged": "{name}'s role changed.",
+    "removed": "{name} removed from the team.",
+    "removeTitle": "Remove {name}?",
+    "removeBody": "They lose access to this workspace straight away. You can invite them again later.",
+    "remove": "Remove"
+  },
+  "invite": {
+    "title": "Team invitation",
+    "kicker": "Team invitation",
+    "join": "Join {workspace} on Trik",
+    "byWhom": "{name} invited you as {role}.",
+    "asRole": "You're invited as {role}.",
+    "forEmail": "This invitation is for",
+    "createAccount": "Create my account",
+    "haveAccount": "I already have an account",
+    "accept": "Join {workspace}",
+    "alreadyIn": "You're already on this team.",
+    "open": "Open Trik",
+    "otherAccount": "This invitation is for {invited}, and you're signed in as {current}. Sign in with the invited address to join.",
+    "switchAccount": "Sign in with another account",
+    "closed": {
+      "expired": "This invitation has expired. Ask whoever invited you for a new one.",
+      "accepted": "This invitation was already used.",
+      "revoked": "This invitation was withdrawn. Ask whoever invited you for a new one."
+    },
+    "notFoundTitle": "This link doesn't work.",
+    "notFoundBody": "Check that you opened the whole link, or ask for a new invitation.",
+    "home": "Go to Trik",
+    "signUpTitle": "Join your team.",
+    "signUpSub": "Create your account to join the workspace you were invited to.",
+    "emailHint": "The address the invitation was sent to.",
+    "errors": {
+      "invitation-used": "This invitation was already used.",
+      "invitation-revoked": "This invitation is no longer valid. Ask for a new one.",
+      "invitation-expired": "This invitation has expired. Ask for a new one.",
+      "invitation-other-email": "This invitation was sent to another email address.",
+      "invitation-not-found": "This link doesn't work. Ask for a new invitation.",
+      "invitation-invalid": "This invitation isn't for this email address, or it has expired."
+    }
   }
 }

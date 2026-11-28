@@ -1163,6 +1163,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/workspace/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open invitations
+         * @description Pending and expired invitations, newest first (accepted and withdrawn ones are in the audit log). Requires the `workspace.members.view` permission in the workspace.
+         */
+        get: operations["listInvitations"];
+        put?: never;
+        /**
+         * Invite someone to the team
+         * @description Emails a link that works once, for 7 days, only for that address, and returns it too (to share it another way, e.g. on WhatsApp: it is shown only here). Inviting the same address again replaces the open invitation. Nobody offers a role with more permissions than they have; only an owner invites an owner. Needs a verified email; 20 per hour per person; at most 100 open per workspace. Requires the `workspace.members.manage` permission in the workspace.
+         */
+        post: operations["inviteMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/workspace/invitations/{invitation}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw an invitation
+         * @description Its link stops working. Only an owner withdraws an invitation to be an owner. Requires the `workspace.members.manage` permission in the workspace.
+         */
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What an invitation link is for
+         * @description Public (the token is the secret): the workspace, who invited, the role and the status, for the link's page. 30 per minute per address.
+         */
+        get: operations["showInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Join the workspace
+         * @description The signed-in account's email must be the invited one. Joins the workspace with the offered role (and its organization, as a member), and verifies the email (the link was sent to it). Already a member: nothing changes. The link then stops working.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1837,6 +1921,49 @@ export interface components {
                 };
             }[];
         };
+        Invitation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["RoleName"];
+            custom_role: {
+                /** Format: uuid */
+                id?: string;
+                name?: string;
+            } | null;
+            /** @enum {string} */
+            status: "pending" | "expired" | "accepted" | "revoked";
+            invited_by: {
+                /** Format: uuid */
+                id?: string;
+                name?: string;
+            } | null;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string | null;
+        };
+        InvitationPreview: {
+            workspace: {
+                name: string;
+            };
+            inviter: {
+                name?: string;
+            } | null;
+            /**
+             * Format: email
+             * @description The address the invitation was sent to; only it can accept.
+             */
+            email: string;
+            role: components["schemas"]["RoleName"];
+            /** @description The custom role's name, when role is custom. */
+            custom_role: string | null;
+            /** @enum {string} */
+            status: "pending" | "expired" | "accepted" | "revoked";
+            /** Format: date-time */
+            expires_at: string;
+        };
     };
     responses: {
         /** @description Bad request */
@@ -1986,9 +2113,12 @@ export interface operations {
                     email: string;
                     password: string;
                     password_confirmation: string;
-                    workspace_name: string;
+                    /** @description Required without invitation: the first workspace to create. */
+                    workspace_name?: string;
                     /** @description Send from mobile/API clients to get a token. Web (Sanctum stateful) gets a session cookie. */
                     device_name?: string;
+                    /** @description A team invitation link's token. The email must be the invited one: the account joins that workspace (nothing else is created) and starts verified. */
+                    invitation?: string;
                 };
             };
         };
@@ -4559,6 +4689,175 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: {
+                per_page?: components["parameters"]["PerPage"];
+                /** @description meta.next_cursor or meta.prev_cursor from the previous page */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Invitation"][];
+                        meta: components["schemas"]["CursorMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    inviteMember: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+                /** @description Required here. Use a new UUID per action and reuse it on retries. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKeyRequired"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    role: components["schemas"]["RoleName"];
+                    /**
+                     * Format: uuid
+                     * @description Required when role is custom.
+                     */
+                    custom_role_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Invited */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Invitation"] & {
+                            /**
+                             * Format: uri
+                             * @description The invitation link (shown once).
+                             */
+                            url: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationFailed"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path: {
+                invitation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    showInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The invitation link's token (the last part of /invite/{token}). */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invitation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["InvitationPreview"];
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The invitation link's token (the last part of /invite/{token}). */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Joined */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            workspace: components["schemas"]["Workspace"];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
         };
     };

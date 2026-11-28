@@ -12,4 +12,7 @@ interface UserLookup
      * @return array<string, array{id: string, name: string, email: string}>
      */
     public function find(array $ids): array;
+
+    /** The id of the account with this email (lower-case), if there is one. */
+    public function findByEmail(string $email): ?string;
 }

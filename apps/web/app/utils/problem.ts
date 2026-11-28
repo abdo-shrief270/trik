@@ -58,6 +58,9 @@ function isErrorMap(v: unknown): v is Record<string, string[]> {
 const KNOWN = new Set([
   'network', 'server-error', 'unauthenticated', 'forbidden', 'not-found', 'rate-limited', 'validation-failed',
   'email-not-verified', 'conflict', 'unavailable',
+  // team (Workspaces module)
+  'owner-only', 'beyond-own-permissions', 'already-a-member', 'last-owner', 'cannot-change-own-role', 'invitation-limit',
+  'invitation-closed',
 ])
 
 /** The i18n key for a toast or form-level message. */

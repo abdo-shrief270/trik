@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Identity;
 
+use App\Support\Identity\EmailVerifier;
 use App\Support\Identity\UserLookup;
 use App\Support\Modules\ModuleServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -19,6 +20,7 @@ final class IdentityServiceProvider extends ModuleServiceProvider
     protected function registerModule(): void
     {
         $this->app->bind(UserLookup::class, EloquentUserLookup::class);
+        $this->app->bind(EmailVerifier::class, EloquentUserLookup::class);
     }
 
     protected function bootModule(): void

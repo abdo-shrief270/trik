@@ -44,7 +44,8 @@ export const useSessionStore = defineStore('session', {
       await this.load()
     },
 
-    async signUp(body: { name: string; email: string; password: string; password_confirmation: string; workspace_name: string }): Promise<void> {
+    /** With `invitation` (a team invitation link's token) the account joins that workspace instead of creating one. */
+    async signUp(body: { name: string; email: string; password: string; password_confirmation: string; workspace_name?: string; invitation?: string }): Promise<void> {
       const res = await call(useApi().POST('/auth/register', { body }), { quiet401: true })
       if (res.workspace?.id) this.selectWorkspace(res.workspace.id)
       await this.load()

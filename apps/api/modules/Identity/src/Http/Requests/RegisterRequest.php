@@ -16,7 +16,9 @@ final class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()],
-            'workspace_name' => ['required', 'string', 'max:120'],
+            'workspace_name' => ['required_without:invitation', 'nullable', 'string', 'max:120'],
+            // a team invitation link's token (#36): joins that workspace instead of creating one
+            'invitation' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Za-z0-9_-]{43}$/'],
             'device_name' => ['sometimes', 'string', 'max:100'],
         ];
     }

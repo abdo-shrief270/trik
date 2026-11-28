@@ -46,7 +46,6 @@ paths:
               - email
               - password
               - password_confirmation
-              - workspace_name
               properties:
                 name:
                   type: string
@@ -62,9 +61,14 @@ paths:
                 workspace_name:
                   type: string
                   maxLength: 120
+                  description: 'Required without invitation: the first workspace to create.'
                 device_name:
                   type: string
                   description: Send from mobile/API clients to get a token. Web (Sanctum stateful) gets a session cookie.
+                invitation:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+                  description: 'A team invitation link''s token. The email must be the invited one: the account joins that workspace (nothing else is created) and starts verified.'
       security: []
       responses:
         '201':
@@ -3254,6 +3258,203 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /workspace/invitations:
+    get:
+      operationId: listInvitations
+      summary: Open invitations
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/PerPage'
+      - $ref: '#/components/parameters/Cursor'
+      x-permission: workspace.members.view
+      description: Pending and expired invitations, newest first (accepted and withdrawn ones are in the audit log). Requires the `workspace.members.view` permission in the workspace.
+      responses:
+        '200':
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                - meta
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invitation'
+                  meta:
+                    $ref: '#/components/schemas/CursorMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: inviteMember
+      summary: Invite someone to the team
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      x-permission: workspace.members.manage
+      description: 'Emails a link that works once, for 7 days, only for that address, and returns it too (to share it another way, e.g. on WhatsApp: it is shown only here). Inviting the same address again replaces the open invitation. Nobody offers a role with more permissions than they have; only an owner invites an owner. Needs a verified email; 20 per hour per person; at most 100 open per workspace. Requires the `workspace.members.manage` permission in the workspace.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - role
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                role:
+                  $ref: '#/components/schemas/RoleName'
+                custom_role_id:
+                  type:
+                  - string
+                  - 'null'
+                  format: uuid
+                  description: Required when role is custom.
+      responses:
+        '201':
+          description: Invited
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    allOf:
+                    - $ref: '#/components/schemas/Invitation'
+                    - type: object
+                      required:
+                      - url
+                      properties:
+                        url:
+                          type: string
+                          format: uri
+                          description: The invitation link (shown once).
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /workspace/invitations/{invitation}:
+    delete:
+      operationId: revokeInvitation
+      summary: Withdraw an invitation
+      tags:
+      - Team
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: invitation
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: workspace.members.manage
+      description: Its link stops working. Only an owner withdraws an invitation to be an owner. Requires the `workspace.members.manage` permission in the workspace.
+      responses:
+        '204':
+          description: Withdrawn
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /invitations/{token}:
+    get:
+      operationId: showInvitation
+      summary: What an invitation link is for
+      tags:
+      - Team
+      security: []
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+        description: The invitation link's token (the last part of /invite/{token}).
+      description: 'Public (the token is the secret): the workspace, who invited, the role and the status, for the link''s page. 30 per minute per address.'
+      responses:
+        '200':
+          description: The invitation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/InvitationPreview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Join the workspace
+      tags:
+      - Team
+      parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+        description: The invitation link's token (the last part of /invite/{token}).
+      description: 'The signed-in account''s email must be the invited one. Joins the workspace with the offered role (and its organization, as a member), and verifies the email (the link was sent to it). Already a member: nothing changes. The link then stops working.'
+      responses:
+        '200':
+          description: Joined
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - workspace
+                    properties:
+                      workspace:
+                        $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 components:
   securitySchemes:
     bearerAuth:
@@ -4877,3 +5078,104 @@ components:
                     - number
                     - 'null'
                     description: 'refused / (delivered + refused): refused at the door'
+    Invitation:
+      type: object
+      required:
+      - id
+      - email
+      - role
+      - custom_role
+      - status
+      - invited_by
+      - expires_at
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/RoleName'
+        custom_role:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        status:
+          type: string
+          enum:
+          - pending
+          - expired
+          - accepted
+          - revoked
+        invited_by:
+          type:
+          - object
+          - 'null'
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    InvitationPreview:
+      type: object
+      required:
+      - workspace
+      - inviter
+      - email
+      - role
+      - custom_role
+      - status
+      - expires_at
+      properties:
+        workspace:
+          type: object
+          required:
+          - name
+          properties:
+            name:
+              type: string
+        inviter:
+          type:
+          - object
+          - 'null'
+          properties:
+            name:
+              type: string
+        email:
+          type: string
+          format: email
+          description: The address the invitation was sent to; only it can accept.
+        role:
+          $ref: '#/components/schemas/RoleName'
+        custom_role:
+          type:
+          - string
+          - 'null'
+          description: The custom role's name, when role is custom.
+        status:
+          type: string
+          enum:
+          - pending
+          - expired
+          - accepted
+          - revoked
+        expires_at:
+          type: string
+          format: date-time

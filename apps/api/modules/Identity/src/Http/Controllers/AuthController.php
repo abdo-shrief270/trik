@@ -24,10 +24,10 @@ final class AuthController
 
     public function register(RegisterRequest $request, RegisterUser $register): JsonResponse
     {
-        /** @var array{name: string, email: string, password: string, workspace_name: string} $data */
+        /** @var array{name: string, email: string, password: string, workspace_name?: string|null, invitation?: string|null} $data */
         $data = $request->validated();
 
-        [$user, $workspace] = $register->handle($data['name'], $data['email'], $data['password'], $data['workspace_name']);
+        [$user, $workspace] = $register->handle($data['name'], $data['email'], $data['password'], $data['workspace_name'] ?? null, $data['invitation'] ?? null);
 
         return response()->json([
             'user' => $this->userPayload($user),

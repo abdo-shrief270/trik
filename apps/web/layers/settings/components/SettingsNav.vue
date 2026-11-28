@@ -6,6 +6,7 @@ const { can } = usePermissions()
 
 const items = computed(() => [
   { to: '/settings', label: t('settingsNav.account'), show: true },
+  { to: '/settings/team', label: t('settingsNav.team'), show: can('workspace.members.view') },
   { to: '/settings/stores', label: t('settingsNav.stores'), show: can('commerce.stores.view') },
   { to: '/confirmations/settings', label: t('settingsNav.confirmation'), show: can('confirmation.settings.view') },
   { to: '/settings/risk', label: t('settingsNav.risk'), show: can('risk.settings.view') },

@@ -379,6 +379,55 @@ check("an agent cannot download a customer's data export", r.status_code == 403,
 r = call("GET", "/v1/compliance/requests", A["token"], A["ws"])
 check("privacy requests never name the customer", r.status_code == 200 and "01012345678" not in r.text and "201012345678" not in r.text, r.text[:160])
 
+# ---------------- team invitations (#36)
+def invite_as(user, email, role="agent", extra=None, ws=None):
+    return call("POST", "/v1/workspace/invitations", user["token"], ws or user["ws"],
+                {"email": email, "role": role, **(extra or {})}, {"Idempotency-Key": str(uuid.uuid4())})
+
+inv_email = f"invitee-{uuid.uuid4().hex[:8]}@probe.test"
+r = invite_as(A, inv_email, extra={
+    # forged fields: must all be ignored
+    "workspace_id": B["ws"], "accepted_at": "2020-01-01", "token_hash": "0" * 64, "status": "accepted", "invited_by": B["id"],
+})
+check("an owner can invite", r.status_code == 201 and r.json()["data"]["url"].count("/invite/") == 1, f"{r.status_code} {r.text[:160]}")
+INV_TOKEN = r.json()["data"]["url"].rsplit("/", 1)[1] if r.status_code == 201 else "x" * 43
+INV_ID = r.json()["data"]["id"] if r.status_code == 201 else str(uuid.uuid4())
+row = sql(f"select workspace_id::text || '|' || coalesce(accepted_at::text, '-') || '|' || (token_hash = repeat('0', 64))::text || '|' || invited_by::text from workspaces_invitations where id = '{INV_ID}'")
+check("forged fields on an invitation are ignored", row == f"{A['ws']}|-|false|{A['id']}", row)
+
+r = call("GET", "/v1/workspace/invitations", B["token"], B["ws"])
+check("another workspace does not see the invitations", r.status_code == 200 and inv_email not in r.text, r.text[:160])
+r = call("DELETE", f"/v1/workspace/invitations/{INV_ID}", B["token"], B["ws"])
+check("another workspace cannot withdraw an invitation (IDOR)", r.status_code == 404, r.status_code)
+r = invite_as(B, inv_email, ws=A["ws"])
+check("cannot invite into a workspace you are not a member of", r.status_code == 403, r.status_code)
+r = invite_as(AGENT, f"x-{uuid.uuid4().hex[:6]}@probe.test", ws=A["ws"])
+check("an agent cannot invite", r.status_code == 403, r.status_code)
+r = invite_as(admin, f"x-{uuid.uuid4().hex[:6]}@probe.test", role="owner", ws=A["ws"])
+check("an admin cannot invite an owner", r.status_code == 403, r.status_code)
+r = invite_as(B, f"x-{uuid.uuid4().hex[:6]}@probe.test", role="custom", extra={"custom_role_id": role_editor})
+check("cannot offer another workspace's custom role", r.status_code == 422, r.status_code)
+
+r = call("GET", f"/v1/invitations/{INV_TOKEN}")
+check("an invitation link's page needs no sign-in and shows no secret",
+      r.status_code == 200 and "token" not in r.text and "hash" not in r.text and r.headers.get("Cache-Control", "").startswith("no-store"),
+      f"{r.status_code} {r.text[:160]}")
+r = call("GET", "/v1/invitations/" + "A" * 43)
+check("a made-up invitation token is not found", r.status_code == 404, r.status_code)
+r = call("POST", f"/v1/invitations/{INV_TOKEN}/accept", B["token"])
+check("another account cannot use someone's invitation", r.status_code == 403, r.status_code)
+r = call("POST", "/v1/auth/register", body={
+    "name": "thief", "email": f"thief-{uuid.uuid4().hex[:6]}@probe.test", "password": "Probe-pass-123",
+    "password_confirmation": "Probe-pass-123", "invitation": INV_TOKEN, "device_name": "probe"})
+check("cannot sign up into a workspace with someone else's invitation", r.status_code == 422, r.status_code)
+r = call("POST", "/v1/auth/register", body={
+    "name": "invitee", "email": inv_email, "password": "Probe-pass-123", "password_confirmation": "Probe-pass-123",
+    "invitation": INV_TOKEN, "device_name": "probe", "workspace_name": "ignored", "role": "owner"})
+joined = r.status_code == 201 and r.json()["workspace"]["id"] == A["ws"] and r.json()["workspace"]["role"] == "agent"
+check("the invited address signs up into the workspace with the offered role only", joined, f"{r.status_code} {r.text[:160]}")
+r = call("POST", f"/v1/invitations/{INV_TOKEN}/accept", r.json().get("token") if r.status_code == 201 else None)
+check("an invitation link works once", r.status_code == 409, r.status_code)
+
 # ---------------- transport and browser
 r = requests.options(BASE + "/v1/auth/login", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
 check("CORS does not allow arbitrary origins", r.headers.get("Access-Control-Allow-Origin") not in ("*", "https://evil.example"), r.headers.get("Access-Control-Allow-Origin"))
