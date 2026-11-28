@@ -46,6 +46,8 @@ export default defineNuxtConfig({
       // NUXT_PUBLIC_API_BASE. The CSRF cookie route is on the same origin, without /v1.
       apiBase: 'http://localhost:8080/v1',
       centrifugoUrl: 'ws://localhost:8000/connection/websocket',
+      // NUXT_PUBLIC_SITE_URL: the marketing site (terms and privacy policy live there).
+      siteUrl: 'https://trik.chat',
     },
   },
   typescript: { strict: true },

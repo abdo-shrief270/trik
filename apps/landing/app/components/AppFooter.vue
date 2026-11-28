@@ -44,6 +44,10 @@ const contact = computed(() => startLink())
 
       <div class="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-dusk">
         <span>{{ t('footer.rights', { year }) }}</span>
+        <nav :aria-label="t('footer.legal')" class="flex gap-6">
+          <NuxtLink :to="localePath('/privacy')" class="transition-colors hover:text-white">{{ t('footer.privacy') }}</NuxtLink>
+          <NuxtLink :to="localePath('/terms')" class="transition-colors hover:text-white">{{ t('footer.terms') }}</NuxtLink>
+        </nav>
       </div>
     </div>
   </footer>

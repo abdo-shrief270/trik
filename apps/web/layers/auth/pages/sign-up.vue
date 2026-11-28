@@ -11,6 +11,10 @@ const invitation = computed(() =>
 )
 const invitedEmail = typeof route.query.email === 'string' ? route.query.email : ''
 
+// The terms and privacy policy are on the marketing site: Arabic at the root, English under /en.
+const { locale } = useI18n()
+const legal = (doc: 'terms' | 'privacy') => `${useRuntimeConfig().public.siteUrl}${locale.value === 'en' ? '/en' : ''}/${doc}`
+
 const form = reactive({ name: '', email: invitation.value ? invitedEmail : '', password: '', password_confirmation: '', workspace_name: '' })
 type Field = keyof typeof form
 const errors = reactive<Partial<Record<Field, string>>>({})
@@ -89,6 +93,14 @@ async function focusFirstError() {
       <UiInput v-model="form.password" :label="t('auth.password')" type="password" autocomplete="new-password" dir="ltr" :hint="t('auth.passwordHint')" :error="errors.password" />
       <UiInput v-model="form.password_confirmation" :label="t('auth.passwordConfirm')" type="password" autocomplete="new-password" dir="ltr" :error="errors.password_confirmation" />
       <UiButton type="submit" size="lg" block :loading="busy">{{ t('auth.createAccount') }}</UiButton>
+      <i18n-t keypath="auth.agree" tag="p" class="text-center text-sm text-muted">
+        <template #terms>
+          <a :href="legal('terms')" target="_blank" rel="noopener" class="font-semibold text-indigo hover:text-indigo-strong">{{ t('auth.terms') }}</a>
+        </template>
+        <template #privacy>
+          <a :href="legal('privacy')" target="_blank" rel="noopener" class="font-semibold text-indigo hover:text-indigo-strong">{{ t('auth.privacy') }}</a>
+        </template>
+      </i18n-t>
     </form>
 
     <p class="mt-8 text-center text-muted">
