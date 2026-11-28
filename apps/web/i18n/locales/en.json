@@ -3,6 +3,153 @@
     "name": "Trik",
     "tagline": "The third tick."
   },
+  "nav": {
+    "home": "Home",
+    "inbox": "Inbox",
+    "confirmations": "Confirmations",
+    "orders": "Orders",
+    "settings": "Settings"
+  },
+  "shell": {
+    "skip": "Skip to content",
+    "main": "Main",
+    "switchWorkspace": "Switch workspace",
+    "workspaceLabel": "Workspace: {name}. Switch workspace",
+    "unreadCount": "{n} unread",
+    "account": "Your account"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "agent": "Agent",
+    "custom": "Custom role"
+  },
+  "ui": {
+    "close": "Close",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "count": "Count"
+  },
+  "verify": {
+    "banner": "Confirm your email ({email}) to connect a WhatsApp number. Check your inbox for the link.",
+    "resend": "Send the link again",
+    "sent": "We sent a new link to {email}.",
+    "sentShort": "Link sent",
+    "doneTitle": "Email confirmed.",
+    "doneBody": "Thanks. You can now connect your WhatsApp number.",
+    "continue": "Continue"
+  },
+  "errors": {
+    "network": "We can't reach Trik. Check your connection and try again.",
+    "server-error": "Something went wrong on our side. Try again in a minute.",
+    "unauthenticated": "Your session ended. Sign in again.",
+    "forbidden": "You don't have permission to do that. Ask an owner or admin.",
+    "not-found": "We couldn't find that. It may have been removed.",
+    "rate-limited": "Too many tries. Wait a minute and try again.",
+    "validation-failed": "Some fields need a look.",
+    "email-not-verified": "Confirm your email first.",
+    "conflict": "Someone changed this at the same time. Refresh and try again.",
+    "unavailable": "Trik is briefly unavailable. Try again in a minute.",
+    "generic": "That didn't work. Try again."
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signInTitle": "Welcome back.",
+    "signInSub": "Sign in to your team's inbox and orders.",
+    "resetDone": "Password changed. Sign in with the new one.",
+    "email": "Email",
+    "password": "Password",
+    "forgot": "Forgot your password?",
+    "noAccount": "New to Trik?",
+    "signUp": "Create an account",
+    "signUpTitle": "Start confirming orders.",
+    "signUpSub": "Create your account and your first workspace. It takes a minute.",
+    "name": "Your name",
+    "workspaceName": "Store or brand name",
+    "workspaceHint": "Your workspace. You can add more brands later.",
+    "passwordHint": "At least 10 characters, with letters and numbers.",
+    "passwordConfirm": "Confirm password",
+    "createAccount": "Create account",
+    "haveAccount": "Already have an account?",
+    "forgotTitle": "Reset your password.",
+    "forgotSub": "Enter your email and we'll send you a link to choose a new password.",
+    "forgotSentTitle": "Check your email.",
+    "forgotSent": "If {email} has a Trik account, a link to reset the password is on its way. It works for 60 minutes.",
+    "backToSignIn": "Back to sign in",
+    "sendLink": "Send the link",
+    "resetTitle": "Choose a new password.",
+    "resetSub": "For",
+    "resetInvalid": "This link has expired or was already used. Ask for a new one.",
+    "newPassword": "New password",
+    "resetSave": "Save the new password",
+    "signOut": "Sign out",
+    "panelTitle": "Every order confirmed before it ships.",
+    "panelBody": "Your team's WhatsApp inbox, order confirmation and refusal risk in one place.",
+    "errors": {
+      "failed": "That email and password don't match. Try again.",
+      "throttled": "Too many sign-in attempts. Wait a minute and try again."
+    }
+  },
+  "forms": {
+    "required": "Fill this in.",
+    "email": "This email doesn't look right.",
+    "passwordShort": "Use at least 10 characters.",
+    "passwordWeak": "Use letters and numbers.",
+    "passwordMismatch": "The passwords don't match.",
+    "tooLong": "That's too long.",
+    "emailTaken": "This email already has an account. Sign in instead.",
+    "invalid": "Check this field."
+  },
+  "home": {
+    "hello": "Hello, {name}.",
+    "sub": "Here's what's happening in {workspace}.",
+    "waiting": "Where work is waiting",
+    "unread": "unread",
+    "mine": "assigned to you",
+    "setupTitle": "Get ready to confirm orders",
+    "setupSub": "Four steps for this workspace.",
+    "progress": "{done} of {total} done",
+    "steps": {
+      "email": {
+        "title": "Confirm your email",
+        "body": "Needed before you can connect a WhatsApp number."
+      },
+      "whatsapp": {
+        "title": "Connect your WhatsApp number",
+        "body": "The number your customers already know."
+      },
+      "confirmation": {
+        "title": "Turn on order confirmation",
+        "body": "Choose the message, the reminder and when to call."
+      },
+      "store": {
+        "title": "Connect your store",
+        "body": "Shopify and EasyOrders orders arrive by themselves."
+      }
+    },
+    "state": {
+      "done": "Done",
+      "todo": "To do",
+      "noAccess": "Ask an admin",
+      "soon": "Coming soon",
+      "needsEmail": "Confirm your email first"
+    }
+  },
+  "settings": {
+    "account": "Account",
+    "verified": "Confirmed",
+    "notVerified": "Not confirmed",
+    "workspace": "Workspace",
+    "role": "Your role",
+    "language": "Language",
+    "languageLabel": "Interface language",
+    "sessions": "Signed-in devices",
+    "sessionsSub": "Sign out anywhere you don't recognise.",
+    "browser": "Web browser",
+    "thisDevice": "This device",
+    "signOutDevice": "Sign out",
+    "sessionEnded": "Signed out of that device."
+  },
   "order": {
     "confirm": "Confirm order",
     "trikd": "Trik'd",
@@ -11,7 +158,23 @@
   },
   "inbox": {
     "title": "Inbox",
+    "queue": "Queue",
+    "unread": "Unread",
     "assignedToMe": "Assigned to me",
     "unassigned": "Unassigned"
+  },
+  "placeholder": {
+    "inbox": {
+      "title": "Conversations arrive here",
+      "body": "The shared inbox comes in the next update: one conversation per customer, with the order beside the chat."
+    },
+    "orders": {
+      "title": "Orders arrive here",
+      "body": "The orders list comes in an upcoming update."
+    },
+    "confirmations": {
+      "title": "The confirmation board",
+      "body": "Orders waiting for confirmation, with bulk actions, come in an upcoming update."
+    }
   }
 }

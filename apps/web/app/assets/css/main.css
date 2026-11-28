@@ -1,14 +1,53 @@
 @import "tailwindcss";
 @import "../../../../../packages/design-tokens/tokens.css";
 
+/* Components live in layers/ui; Tailwind must scan them. */
+@source "../../../layers";
+
 @theme {
   --color-ink: var(--trik-color-ink);
+  --color-ink-2: #1E1B2E;
+  --color-ink-3: #2A2740;
   --color-indigo: var(--trik-color-indigo);
+  --color-indigo-strong: var(--trik-color-indigo-strong);
+  --color-indigo-soft: var(--trik-color-indigo-soft);
   --color-lime: var(--trik-color-lime);
   --color-paper: var(--trik-color-paper);
-  --font-display: var(--trik-font-display);
-  --font-sans: var(--trik-font-ui);
+  --color-muted: var(--trik-color-muted);
+  --color-line: var(--trik-color-border);
+  --color-mist: #C9C6D6;
+  --color-dusk: #8C88A8;
+  --color-success: var(--trik-color-success);
+  --color-success-bg: var(--trik-color-success-bg);
+  --color-warning: var(--trik-color-warning);
+  --color-warning-bg: var(--trik-color-warning-bg);
+  --color-danger: var(--trik-color-danger);
+  --color-danger-bg: var(--trik-color-danger-bg);
+  --font-display: 'Space Grotesk', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-sans: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-html[dir="rtl"] body { font-family: var(--trik-font-arabic); }
-body { background: var(--trik-color-paper); color: var(--trik-color-ink); }
+/* Arabic: one family for everything, so mixed lines look even (brand book, typography). */
+html[dir="rtl"] body,
+html[dir="rtl"] .font-display { font-family: var(--font-arabic); letter-spacing: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--trik-color-paper);
+  color: var(--trik-color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--trik-color-indigo); color: #fff; }
+:focus-visible { outline: 3px solid var(--trik-color-indigo); outline-offset: 2px; border-radius: 6px; }
+.on-dark :focus-visible { outline-color: var(--trik-color-lime); }
+
+.page-enter-active, .page-leave-active { transition: opacity .2s var(--ease-out-expo), transform .2s var(--ease-out-expo); }
+.page-enter-from { opacity: 0; transform: translateY(6px); }
+.page-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
