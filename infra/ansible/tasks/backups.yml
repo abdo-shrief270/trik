@@ -1,0 +1,34 @@
+# PostgreSQL with pgBackRest (infra/production/postgres), WAL archiving and the backup schedule.
+# docs/runbooks/backups.md. Switching an existing server over restarts PostgreSQL once (a few seconds).
+- name: Refuse to set up backups without an encryption passphrase
+  ansible.builtin.assert:
+    that: backup_cipher_pass | default('') | length >= 32
+    fail_msg: Set backup_cipher_pass (32+ characters) in the vault.
+
+- name: Build the PostgreSQL image with pgBackRest
+  ansible.builtin.command: docker compose build postgres
+  args: { chdir: "{{ app_dir }}/infra/production" }
+  changed_when: false   # a rebuilt image only matters once the container is recreated (next task)
+
+- name: Start PostgreSQL with archiving (recreated only when its image or settings changed)
+  ansible.builtin.command: docker compose up -d --wait postgres
+  args: { chdir: "{{ app_dir }}/infra/production" }
+  register: pg_up
+  changed_when: "'Recreated' in pg_up.stderr or 'Started' in pg_up.stderr"
+
+- name: Backup repositories (stanza, and a first full backup where there is none)
+  ansible.builtin.command: "{{ app_dir }}/infra/production/backup.sh init"
+  register: backup_init
+  changed_when: "'full backup' in backup_init.stdout"
+
+- name: Backup schedule (UTC)
+  ansible.builtin.copy:
+    dest: /etc/cron.d/trik-backup
+    mode: "0644"
+    content: |
+      # Managed by Ansible (infra/ansible/tasks/backups.yml). docs/runbooks/backups.md
+      SHELL=/bin/bash
+      PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      30 2 * * 0   {{ deploy_user }}  {{ app_dir }}/infra/production/backup.sh full 2>&1 | logger -t trik-backup
+      30 2 * * 1-6 {{ deploy_user }}  {{ app_dir }}/infra/production/backup.sh diff 2>&1 | logger -t trik-backup
+      */5 * * * *  {{ deploy_user }}  {{ app_dir }}/infra/production/backup.sh check 2>&1 | logger -t trik-backup

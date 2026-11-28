@@ -23,9 +23,15 @@ x-owner-env: &owner-env
   DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?set DB_OWNER_PASSWORD in .env}
 
 services:
+  # Built on the server with pgBackRest (postgres/Dockerfile, built by Ansible). deploy.sh pulls with
+  # --ignore-buildable, so a release never replaces it. Backups: docs/runbooks/backups.md.
   postgres:
-    image: postgres:19-alpine
+    build: ./postgres
+    image: trik-postgres:19
     restart: unless-stopped
+    # An init process as PID 1: pgBackRest's async archiver forks, and its orphans must not be reaped by the
+    # postmaster (it treats an unknown child's exit as a crash and restarts the database).
+    init: true
     environment:
       POSTGRES_DB: trik
       POSTGRES_USER: postgres
@@ -33,6 +39,35 @@ services:
       # Read once by postgres/10-roles.sh on first start.
       TRIK_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
       TRIK_API_PASSWORD: ${DB_API_PASSWORD:?set DB_API_PASSWORD in .env}
+      # pgBackRest (run it through `trik-pgbackrest`, which drops repo2 until it has a bucket). repo1 is on this server (a bad
+      # migration, a deleted table); repo2 is an S3-compatible bucket off the server (the server is lost).
+      PGBACKREST_CMD: /usr/local/bin/trik-pgbackrest
+      PGBACKREST_STANZA: trik
+      PGBACKREST_PG1_PATH: /var/lib/postgresql/19/docker
+      PGBACKREST_LOG_LEVEL_FILE: "off"
+      PGBACKREST_COMPRESS_TYPE: zst
+      PGBACKREST_PROCESS_MAX: "2"
+      PGBACKREST_START_FAST: "y"
+      PGBACKREST_ARCHIVE_ASYNC: "y"
+      PGBACKREST_SPOOL_PATH: /var/spool/pgbackrest
+      # If archiving stays down, drop WAL past this instead of filling the disk (the backups then have a gap,
+      # and the check alerts long before).
+      PGBACKREST_ARCHIVE_PUSH_QUEUE_MAX: 4GiB
+      PGBACKREST_REPO1_PATH: /var/lib/pgbackrest
+      PGBACKREST_REPO1_RETENTION_FULL: "2"
+      PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO1_CIPHER_PASS: ${BACKUP_CIPHER_PASS:?set BACKUP_CIPHER_PASS in .env}
+      PGBACKREST_REPO2_TYPE: s3
+      PGBACKREST_REPO2_PATH: /trik
+      PGBACKREST_REPO2_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      PGBACKREST_REPO2_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      PGBACKREST_REPO2_S3_REGION: ${BACKUP_S3_REGION:-auto}
+      PGBACKREST_REPO2_S3_KEY: ${BACKUP_S3_KEY:-}
+      PGBACKREST_REPO2_S3_KEY_SECRET: ${BACKUP_S3_KEY_SECRET:-}
+      PGBACKREST_REPO2_S3_URI_STYLE: path
+      PGBACKREST_REPO2_RETENTION_FULL: "4"
+      PGBACKREST_REPO2_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO2_CIPHER_PASS: ${BACKUP_CIPHER_PASS}
     command:
       - postgres
       - -c
@@ -49,8 +84,16 @@ services:
       - timezone=UTC
       - -c
       - log_min_duration_statement=500ms
+      # Continuous WAL archiving: a busy database ships at least every minute (RPO, docs/runbooks/backups.md).
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=trik-pgbackrest archive-push %p
+      - -c
+      - archive_timeout=60
     volumes:
       - pg_data:/var/lib/postgresql
+      - pg_backup:/var/lib/pgbackrest
       - ../docker/postgres/init/01-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
       - ../postgres/roles.sql:/trik/roles.sql:ro
       - ./postgres/10-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
@@ -158,5 +201,6 @@ networks:
 
 volumes:
   pg_data:
+  pg_backup:
   redis_data:
   caddy_data:

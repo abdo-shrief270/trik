@@ -13,6 +13,20 @@ redis_password: ""
 centrifugo_api_key: ""
 centrifugo_token_hmac_secret: ""
 
+# Backups (docs/runbooks/backups.md). The passphrase encrypts every backup: keep a copy outside the server, or
+# the off-server backups can't be read after losing it. Generate: openssl rand -base64 48 | tr -d '/+=\n'
+backup_cipher_pass: ""
+# Off-server copy, any S3-compatible bucket (e.g. Cloudflare R2: endpoint <account-id>.r2.cloudflarestorage.com,
+# region auto, an API token with Object Read & Write on that bucket only). Empty = backups stay on this server.
+backup_s3_bucket: ""
+backup_s3_endpoint: ""
+backup_s3_region: auto
+backup_s3_key: ""
+backup_s3_key_secret: ""
+# A dead man's switch (e.g. a healthchecks.io check, period 5 min, grace 15 min): pinged by every good check,
+# /fail on a bad one. Empty = problems only reach syslog (journalctl -t trik-backup).
+backup_alert_url: ""
+
 # Laravel
 app_key: ""                     # php artisan key:generate --show
 meta_app_secret: ""
