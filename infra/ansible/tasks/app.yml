@@ -11,7 +11,7 @@
 - name: Production files from the repo
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../{{ item.src }}"
-    dest: "{{ app_dir }}/{{ item.src }}"
+    dest: "{{ app_dir }}/infra/{{ item.src }}"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "{{ item.mode }}"

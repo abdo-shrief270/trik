@@ -4,6 +4,9 @@
     shell: /bin/bash
     create_home: true
 
+- name: SSH directory (before the keys go in)
+  ansible.builtin.file: { path: "/home/{{ deploy_user }}/.ssh", state: directory, owner: "{{ deploy_user }}", mode: "0700" }
+
 - name: Deploy user's keys (full access) and the CI key (forced to the deploy command only)
   ansible.builtin.copy:
     dest: "/home/{{ deploy_user }}/.ssh/authorized_keys"
@@ -18,8 +21,13 @@
       command="{{ app_dir }}/bin/ci-deploy",restrict {{ ci_deploy_key }}
       {% endif %}
 
-- name: SSH directory permissions
-  ansible.builtin.file: { path: "/home/{{ deploy_user }}/.ssh", state: directory, owner: "{{ deploy_user }}", mode: "0700" }
+- name: The deploy user administers the server (it logs in with keys only; the CI key stays forced to deploy)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-trik-deploy
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      {{ deploy_user }} ALL=(ALL) NOPASSWD:ALL
 
 - name: Harden sshd (keys only, no root, only the deploy user)
   ansible.builtin.copy:
@@ -36,6 +44,9 @@
       MaxAuthTries 3
       LoginGraceTime 30
   notify: Restart ssh
+
+- name: Apply the sshd changes now (a failed later task must not leave the old settings running)
+  ansible.builtin.meta: flush_handlers
 
 - name: Ban repeated SSH failures
   ansible.builtin.copy:
