@@ -136,6 +136,7 @@ services:
     environment:
       LANDING_DOMAIN: ${LANDING_DOMAIN:-trik.chat}
       API_DOMAIN: ${API_DOMAIN:-api.trik.chat}
+      APP_DOMAIN: ${APP_DOMAIN:-app.trik.chat}
     ports:
       - "${EDGE_BIND:-0.0.0.0}:${EDGE_PORT:-443}:443"
     volumes:

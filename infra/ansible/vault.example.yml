@@ -18,6 +18,19 @@ app_key: ""                     # php artisan key:generate --show
 meta_app_secret: ""
 meta_webhook_verify_token: ""
 
+# Email, sending only (no mailbox needed): a transactional provider's SMTP, e.g. Resend (smtp.resend.com, user
+# "resend", the API key as password) or Brevo. Leave mail_smtp_host empty to keep MAIL_MAILER=log.
+mail_smtp_host: ""
+mail_smtp_port: 587
+mail_smtp_username: ""
+mail_smtp_password: ""
+mail_from_address: no-reply@trik.chat
+
+# Shopify app (Dev Dashboard → the app → Client credentials). Empty until it exists; the previous secret only while rotating.
+shopify_client_id: ""
+shopify_client_secret: ""
+shopify_previous_client_secret: ""
+
 # Cloudflare Origin Certificate for trik.chat and *.trik.chat (Cloudflare → SSL/TLS → Origin Server).
 origin_cert_pem: |
   -----BEGIN CERTIFICATE-----

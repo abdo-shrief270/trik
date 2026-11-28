@@ -59,6 +59,34 @@ www.{$LANDING_DOMAIN} {
 	}
 }
 
+# ---------------------------------------------------------------- web app (static single-page app, apps/web)
+{$APP_DOMAIN} {
+	import origin_tls
+	import security_headers
+	header {
+		X-Frame-Options DENY
+		# The app only talks to the API (and its WebSocket); nothing else is loaded or framed.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://{$API_DOMAIN} wss://{$API_DOMAIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+	}
+	encode zstd gzip
+	root * /srv/app
+
+	@assets path /_nuxt/* /_fonts/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@pages not path /_nuxt/* /_fonts/*
+	header @pages Cache-Control "no-cache"
+
+	# Build assets are files or a 404 (never index.html in place of a script).
+	handle @assets {
+		file_server
+	}
+	# Every other route is the app's: a deep link (/orders/…, /settings/stores?…) gets index.html.
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
+
 # ---------------------------------------------------------------- API (apps/api) and real time (Centrifugo)
 {$API_DOMAIN} {
 	import origin_tls
@@ -83,4 +111,11 @@ www.{$LANDING_DOMAIN} {
 			health_interval 10s
 		}
 	}
+}
+
+# ---------------------------------------------------------------- anything else: no answer at all
+# A request for a host not listed above (a scanner, a misconfigured DNS record) gets its connection closed.
+:443 {
+	import origin_tls
+	abort
 }
