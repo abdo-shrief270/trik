@@ -2,6 +2,9 @@ name: Deploy
 
 # Builds the API and edge images, pushes them to GHCR, and ships them to the production server.
 # Off until the server exists: set the repository variable DEPLOY_ENABLED=true (Settings → Variables).
+# Merging to main only BUILDS the images. Going live is a person's decision: Actions → Deploy → Run workflow
+# (on main to ship the latest; with a tag to roll back). Required reviewers would gate it in the UI, but they need a
+# paid plan for a private repository, so the manual run is the gate.
 # Server setup and config changes go through Ansible (infra/ansible); this workflow only ships releases.
 on:
   push:
@@ -59,9 +62,9 @@ jobs:
 
   deploy:
     needs: build
-    if: always() && vars.DEPLOY_ENABLED == 'true' && (needs.build.result == 'success' || inputs.tag != '')
+    if: always() && vars.DEPLOY_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && (needs.build.result == 'success' || inputs.tag != '')
     runs-on: ubuntu-latest
-    # Add required reviewers to this environment to approve each release.
+    # Runs only when started by hand (see the top). With a paid plan, required reviewers on this environment add a second gate.
     environment: production
     steps:
       - name: Ship

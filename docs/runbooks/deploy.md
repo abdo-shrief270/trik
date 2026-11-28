@@ -41,7 +41,8 @@ real time). The server's IP is never published: Cloudflare is in front before th
    - A fine-grained token with *packages: read* for the server (`ghcr_token`).
    - An SSH key pair for CI: `ssh-keygen -t ed25519 -f trik-ci -C trik-ci`. The private key goes in the
      repository secret `DEPLOY_SSH_KEY`, the public key in `ci_deploy_key` (vars.yml).
-   - Environment **production**: add yourself as a required reviewer (each release waits for your approval).
+   - Environment **production** (Settings → Environments). Required reviewers need a paid plan for a private repository;
+     without them the gate is that a release only goes live when someone runs the Deploy workflow by hand.
 6. **Ansible** (from any machine with Ansible ≥ 2.17 and the `community.general` and `ansible.posix` collections):
    ```bash
    cd infra/ansible
@@ -64,8 +65,9 @@ real time). The server's IP is never published: Cloudflare is in front before th
 
 ## Releases
 
-Merging to `main` builds `trik-api` and `trik-edge` (tag = first 12 characters of the commit), waits for
-approval in the *production* environment, then runs `deploy.sh <tag>` on the server:
+Merging to `main` builds `trik-api` and `trik-edge` (tag = first 12 characters of the commit). Nothing goes live until
+someone runs **Actions → Deploy → Run workflow** on `main` (it builds the latest and ships it), which runs
+`deploy.sh <tag>` on the server:
 
 1. pull the images;
 2. `migrate` as the owner role (a failure stops here; the running release is untouched);
