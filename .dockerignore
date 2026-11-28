@@ -1,0 +1,22 @@
+# Build context for images built from the repo root (infra/edge/Dockerfile).
+# Keep secrets, local builds and dependencies out: images install their own.
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/app.env
+**/node_modules
+**/.output
+**/.nuxt
+**/.data
+**/dist
+apps/api/vendor
+apps/api/storage
+apps/mobile
+services
+docs
+design
+infra/ansible/vault.yml
+infra/ansible/inventory.ini
+infra/production/certs
+**/*.log

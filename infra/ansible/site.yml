@@ -1,0 +1,39 @@
+# Sets up the Trik production server from a fresh Ubuntu 24.04 (Hostinger KVM 4). Idempotent: re-run any time.
+#
+#   cd infra/ansible
+#   ansible-playbook -i inventory.ini site.yml --ask-vault-pass
+#
+# First run connects as root (key from hPanel). It creates the `deploy` user and then turns root SSH off,
+# so later runs use: ansible-playbook -i inventory.ini site.yml -e ansible_user=deploy --ask-vault-pass
+- name: Trik production server
+  hosts: trik
+  become: true
+  vars_files:
+    - vars.yml
+    - vault.yml
+  pre_tasks:
+    - name: Refuse to run without SSH keys for the deploy user (or we would lock ourselves out)
+      ansible.builtin.assert:
+        that: deploy_ssh_keys | length > 0
+        fail_msg: Set deploy_ssh_keys in vars.yml first.
+  handlers:
+    - name: Restart ssh
+      ansible.builtin.service: { name: ssh, state: restarted }
+    - name: Restart docker
+      ansible.builtin.service: { name: docker, state: restarted }
+    - name: Reload ufw
+      ansible.builtin.command: ufw reload
+      changed_when: true
+    - name: Restart fail2ban
+      ansible.builtin.service: { name: fail2ban, state: restarted }
+  tasks:
+    - name: Base system
+      ansible.builtin.import_tasks: tasks/base.yml
+    - name: Users and SSH
+      ansible.builtin.import_tasks: tasks/ssh.yml
+    - name: Docker
+      ansible.builtin.import_tasks: tasks/docker.yml
+    - name: Firewall
+      ansible.builtin.import_tasks: tasks/firewall.yml
+    - name: Trik application files and secrets
+      ansible.builtin.import_tasks: tasks/app.yml

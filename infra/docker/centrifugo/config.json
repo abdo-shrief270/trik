@@ -27,6 +27,12 @@
         "name": "workspace",
         "history_size": 50,
         "history_ttl": "300s"
+      },
+      {
+        "name": "user",
+        "history_size": 50,
+        "history_ttl": "300s",
+        "force_recovery": true
       }
     ]
   }

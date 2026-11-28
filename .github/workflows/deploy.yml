@@ -1,0 +1,85 @@
+name: Deploy
+
+# Builds the API and edge images, pushes them to GHCR, and ships them to the production server.
+# Off until the server exists: set the repository variable DEPLOY_ENABLED=true (Settings → Variables).
+# Server setup and config changes go through Ansible (infra/ansible); this workflow only ships releases.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Redeploy an existing image tag (e.g. a previous commit SHA) instead of building"
+        required: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build:
+    if: vars.DEPLOY_ENABLED == 'true' && inputs.tag == ''
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: API image
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          push: true
+          tags: ${{ env.REGISTRY }}/trik-api:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Edge image (Caddy + landing site)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/edge/Dockerfile
+          push: true
+          build-args: WHATSAPP_NUMBER=${{ vars.WHATSAPP_NUMBER }}
+          tags: ${{ env.REGISTRY }}/trik-edge:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha,scope=edge
+          cache-to: type=gha,mode=max,scope=edge
+
+  deploy:
+    needs: build
+    if: always() && vars.DEPLOY_ENABLED == 'true' && (needs.build.result == 'success' || inputs.tag != '')
+    runs-on: ubuntu-latest
+    # Add required reviewers to this environment to approve each release.
+    environment: production
+    steps:
+      - name: Ship
+        env:
+          TAG: ${{ inputs.tag || needs.build.outputs.tag }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || { echo "bad tag"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key is locked to a forced command on the server: this is all it can do.
+          ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes "deploy@${HOST}" "deploy ${TAG}"
+
+      - name: Check from the outside
+        run: |
+          set -euo pipefail
+          for url in https://api.trik.chat/healthz https://trik.chat/; do
+            curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$url" && echo "ok $url"
+          done

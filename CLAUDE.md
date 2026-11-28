@@ -116,19 +116,22 @@ Done and merged on `main`:
 - permissions and roles;
 - ADRs 0010–0012 and the security review;
 - organizations above workspaces (#366), and organization roles, people and audit logs (#367);
-- inbox conversations + 24 h window (#379), workspace badges (#380), Orders module + order card (#381),
-  confirmation engine (#382) and confirmation board (#383).
+- the inbox, badges, Orders, the confirmation engine and the confirmation board APIs (#379–#383).
 
-Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. No waitlist: every call to
-action opens a WhatsApp chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`) until the web app's sign-up is live. No public email
-address yet. Keep the copy in `apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only
-for "confirmed", never on light).
+Open PRs, merge in this order (each retargets by itself):
+1. #386 landing site (`apps/landing`), then #388 production deploy (`infra/`, on #386).
+2. API stack: #393 Shopify app → #394 privacy webhooks → #395 Shopify write-back → #396 EasyOrders → #397 risk score.
+3. Web stack: #389 foundation → #390 inbox → #391 confirmation board → #392 orders.
+4. #398 web settings (stores, risk, privacy; merges the API stack in) → #399 pilot results → the launch PR
+   (`feat/launch`: merges #388, serves the web app at `app.trik.chat`, SMTP for email).
+#387 waitlist API: to close (there is no waitlist).
 
-Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
-- **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC
-  webhooks (orders/create, orders/updated, fulfillments, app/uninstalled), 90-day backfill. Orders go through
-  `Orders\Application\RecordOrder` (idempotent per source + external id). Then mandatory privacy webhooks (#333)
-  and status / address write-back.
-- **EasyOrders (#117)**, the same shape.
-- **Refusal risk score (#115)**: fills `orders_orders.risk_score`, which the board already filters on.
-- **Pilot results (#345), web app screens (#34–#37), infra tasks (#346, #350, #352, #360–#362).**
+Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. Every call to action opens a WhatsApp
+chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`). No public email address yet. Keep the copy in
+`apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only for "confirmed", never on light).
+
+Launch: `docs/runbooks/deploy.md` (server, Cloudflare, DNS, email, first deploy). Feature flags `commerce` and `risk`
+default to `none`: turn them on per pilot workspace.
+
+Next: pilot installs (#335) once the Shopify app exists; infra (#346, #350, #352, #360–#362, mostly needs the server);
+real time (a Centrifugo connection-token endpoint) to replace polling; team invites; the mobile app.
