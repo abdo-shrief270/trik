@@ -116,21 +116,25 @@ Done and merged on `main`:
 - permissions and roles;
 - ADRs 0010–0012 and the security review;
 - organizations above workspaces (#366), and organization roles, people and audit logs (#367);
-- the inbox, badges, Orders, the confirmation engine and the confirmation board APIs (#379–#383).
+- the inbox, badges, Orders, the confirmation engine and the confirmation board APIs (#379–#383);
+- the landing site, the production deploy, Shopify (app, privacy webhooks, write-back), EasyOrders, the risk score,
+  the web app (inbox, board, orders, settings) and pilot results (#386, #388–#400, #402–#404).
 
-Open PRs, merge in this order (each retargets by itself):
-1. #386 landing site (`apps/landing`), then #388 production deploy (`infra/`, on #386).
-2. API stack: #393 Shopify app → #394 privacy webhooks → #395 Shopify write-back → #396 EasyOrders → #397 risk score.
-3. Web stack: #389 foundation → #390 inbox → #391 confirmation board → #392 orders.
-4. #398 web settings (stores, risk, privacy; merges the API stack in) → #399 pilot results → the launch PR
-   (`feat/launch`: merges #388, serves the web app at `app.trik.chat`, SMTP for email).
+**Live since 2026-11-28** (release v1.0.1): `trik.chat` (landing), `app.trik.chat` (web app), `api.trik.chat`, on one
+Hostinger VPS behind Cloudflare (proxied, origin certificate, the firewall only lets Cloudflare reach 443). Sign-up
+email goes through Resend. The repository is public for now (free Actions): never commit a secret (push protection is on).
+
+**Shipping = publishing a GitHub release** `vX.Y.Z` on `main` (`.github/workflows/deploy.yml`); merging deploys
+nothing. Pre-releases build only. Actions → Deploy → Run workflow → a release chooses what runs (rollback). Production
+caches routes and config (`RouteCacheTest` guards duplicate route names). Migrations must keep the previous release
+working. Server setup is Ansible (`infra/ansible`, run as `deploy`; root SSH is off).
 #387 waitlist API: to close (there is no waitlist).
 
 Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. Every call to action opens a WhatsApp
 chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`). No public email address yet. Keep the copy in
 `apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only for "confirmed", never on light).
 
-Launch: `docs/runbooks/deploy.md` (server, Cloudflare, DNS, email, first deploy). Feature flags `commerce` and `risk`
+Runbook: `docs/runbooks/deploy.md` (server, Cloudflare, DNS, email, releases, rollback). Feature flags `commerce` and `risk`
 default to `none`: turn them on per pilot workspace.
 
 Next: pilot installs (#335) once the Shopify app exists; infra (#346, #350, #352, #360–#362, mostly needs the server);
