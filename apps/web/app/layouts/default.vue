@@ -3,12 +3,14 @@
 const session = useSessionStore()
 const { t } = useI18n()
 const route = useRoute()
+const { can } = usePermissions()
 
 const nav = computed(() => [
   { to: '/', icon: 'home' as const, label: t('nav.home'), exact: true },
   { to: '/inbox', icon: 'inbox' as const, label: t('nav.inbox'), badge: session.workspace?.badges?.unread ?? 0 },
   { to: '/confirmations', icon: 'checkCircle' as const, label: t('nav.confirmations') },
   { to: '/orders', icon: 'orders' as const, label: t('nav.orders') },
+  ...(can('analytics.reports.view') ? [{ to: '/results', icon: 'results' as const, label: t('nav.results') }] : []),
 ])
 
 function active(item: { to: string; exact?: boolean }) {

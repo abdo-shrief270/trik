@@ -22,7 +22,7 @@ final class ShopifyQueries
         customer { firstName lastName }
         shippingAddress { name phone address1 address2 city province provinceCode countryCodeV2 }
         billingAddress { name phone }
-        fulfillments(first: 10) { trackingInfo(first: 1) { company number url } }
+        fulfillments(first: 10) { displayStatus trackingInfo(first: 1) { company number url } }
         GQL;
 
     public const LINE_ITEM_FIELDS = 'id title variantTitle sku quantity currentQuantity originalUnitPriceSet { shopMoney { amount } }';

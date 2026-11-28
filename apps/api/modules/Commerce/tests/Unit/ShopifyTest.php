@@ -105,6 +105,23 @@ describe('ShopifyOrderMapper', function (): void {
             ->and($cancelled->input->status)->toBe(OrderStatus::Cancelled);
     });
 
+    it('follows the courier to the door: delivered on the fulfillment means delivered', function (): void {
+        $p = shopifyFixture();
+        $rest = (new ShopifyOrderMapper)->fromWebhook([...$p, 'fulfillment_status' => 'fulfilled', 'fulfillments' => [['shipment_status' => 'in_transit'], ['shipment_status' => 'delivered', 'tracking_company' => 'Bosta']]]);
+        $transit = (new ShopifyOrderMapper)->fromWebhook([...$p, 'fulfillment_status' => 'fulfilled', 'fulfillments' => [['shipment_status' => 'in_transit']]]);
+        $cancelled = (new ShopifyOrderMapper)->fromWebhook([...$p, 'cancelled_at' => '2026-11-27T14:00:00+02:00', 'fulfillments' => [['shipment_status' => 'delivered']]]);
+        $graphql = (new ShopifyOrderMapper)->fromGraphql([
+            'legacyResourceId' => '1', 'name' => '#1', 'createdAt' => '2026-11-27T10:00:00Z', 'updatedAt' => '2026-11-27T10:00:00Z',
+            'displayFulfillmentStatus' => 'FULFILLED', 'shippingAddress' => ['phone' => '01012345678'],
+            'fulfillments' => [['displayStatus' => 'DELIVERED', 'trackingInfo' => []]],
+        ], [['title' => 'x', 'quantity' => 1, 'originalUnitPriceSet' => ['shopMoney' => ['amount' => '10']]]]);
+
+        expect($rest->input->status)->toBe(OrderStatus::Delivered)
+            ->and($transit->input->status)->toBe(OrderStatus::Shipped)
+            ->and($cancelled->input->status)->toBe(OrderStatus::Cancelled)
+            ->and($graphql->input->status)->toBe(OrderStatus::Delivered);
+    });
+
     it('finds the phone wherever the checkout put it, and refuses an order without one', function (): void {
         $p = shopifyFixture();
         $p['shipping_address']['phone'] = 'n/a';

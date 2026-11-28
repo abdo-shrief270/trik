@@ -20,7 +20,8 @@ use Modules\WhatsApp\Domain\PhoneNumber;
  * into the one shape RecordOrder takes. Both shapes are first normalised, so the rules live in one place:
  *  - phone: shipping address, then billing, then customer, then order (COD stores collect it at checkout);
  *  - payment: paid / authorized / refunded is prepaid, anything else is cash on delivery;
- *  - status: cancelled → cancelled, fulfilled → shipped; otherwise left to Trik (confirmation owns it);
+ *  - status: cancelled → cancelled, delivered (the fulfillment's shipment status) → delivered, fulfilled → shipped;
+ *    otherwise left to Trik (confirmation owns it);
  *  - quantities after edits (current_quantity), lines edited down to 0 dropped;
  *  - address: the full text in `raw`, plus governorate (Shopify's Egyptian province codes are the
  *    ISO 3166-2:EG suffixes Trik uses), area = city, street = address1.
@@ -47,7 +48,9 @@ final class ShopifyOrderMapper
         }
 
         $tracking = null;
+        $delivered = false;
         foreach ($this->list($p['fulfillments'] ?? null) as $f) {
+            $delivered = $delivered || strtolower((string) $this->str($f['shipment_status'] ?? null)) === 'delivered';
             $numbers = is_array($f['tracking_numbers'] ?? null) ? array_values($f['tracking_numbers']) : [];
             $number = $this->str($f['tracking_number'] ?? null) ?? $this->str($numbers[0] ?? null);
             if ($number !== null || $this->str($f['tracking_company'] ?? null) !== null) {
@@ -63,6 +66,7 @@ final class ShopifyOrderMapper
             'cancelled' => $this->str($p['cancelled_at'] ?? null) !== null,
             'financial' => strtolower((string) $this->str($p['financial_status'] ?? null)),
             'fulfillment' => strtolower((string) $this->str($p['fulfillment_status'] ?? null)),
+            'delivered' => $delivered,
             'currency' => $this->str($p['currency'] ?? null),
             'total' => $this->scalar($p['current_total_price'] ?? $p['total_price'] ?? null),
             'shipping' => $this->scalar(data_get($p, 'total_shipping_price_set.shop_money.amount')),
@@ -105,7 +109,9 @@ final class ShopifyOrderMapper
         }
 
         $tracking = null;
+        $delivered = false;
         foreach ($this->list($node['fulfillments'] ?? null) as $f) {
+            $delivered = $delivered || strtoupper((string) $this->str($f['displayStatus'] ?? null)) === 'DELIVERED';
             foreach ($this->list($f['trackingInfo'] ?? null) as $t) {
                 if ($this->str($t['number'] ?? null) !== null || $this->str($t['company'] ?? null) !== null) {
                     $tracking = ['company' => $this->str($t['company'] ?? null), 'number' => $this->str($t['number'] ?? null), 'url' => $this->str($t['url'] ?? null)];
@@ -121,6 +127,7 @@ final class ShopifyOrderMapper
             'cancelled' => $this->str($node['cancelledAt'] ?? null) !== null,
             'financial' => strtolower((string) $this->str($node['displayFinancialStatus'] ?? null)),
             'fulfillment' => strtolower((string) $this->str($node['displayFulfillmentStatus'] ?? null)),
+            'delivered' => $delivered,
             'currency' => $this->str($node['currencyCode'] ?? null),
             'total' => $this->scalar(data_get($node, 'currentTotalPriceSet.shopMoney.amount') ?? data_get($node, 'totalPriceSet.shopMoney.amount')),
             'shipping' => $this->scalar(data_get($node, 'totalShippingPriceSet.shopMoney.amount')),
@@ -171,6 +178,8 @@ final class ShopifyOrderMapper
 
         $status = match (true) {
             $o['cancelled'] === true => OrderStatus::Cancelled,
+            // the courier's delivery scan reaches Shopify on the fulfillment (shipment_status / displayStatus)
+            $o['delivered'] === true => OrderStatus::Delivered,
             $o['fulfillment'] === 'fulfilled' => OrderStatus::Shipped,
             default => null,
         };

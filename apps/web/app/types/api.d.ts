@@ -1119,6 +1119,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/pilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Before vs after Trik
+         * @description Requires `analytics.reports.view`. `baseline`, `after` and `change` are null until there is a go-live date. `daily` covers the last 60 days (days without orders are left out).
+         */
+        get: operations["getPilotResults"];
+        /**
+         * Set the go-live date and the baseline length
+         * @description Requires `analytics.reports.manage`. `live_at: null` goes back to the first WhatsApp confirmation. Not in the future.
+         */
+        put: operations["updatePilotResults"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analytics/pilot/weekly.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly results as a spreadsheet
+         * @description Requires `analytics.reports.view`. One row per week (Monday, Cairo) from the start of the baseline: week, period (before, go-live week, after), orders, confirmed, cancelled, shipped, delivered, refused, open, the three rates and the median minutes to confirm. UTF-8 with a BOM (opens in Excel). 20 per minute.
+         */
+        get: operations["downloadPilotWeekly"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1699,6 +1743,99 @@ export interface components {
                     late_night?: number;
                 };
             };
+        };
+        /** PilotResults */
+        PilotResults: {
+            /** Format: date-time */
+            live_at: string | null;
+            /** @enum {string|null} */
+            live_at_source: "set" | "first_confirmation" | null;
+            baseline_days: number;
+            /** @example Africa/Cairo */
+            timezone: string;
+            baseline: {
+                /** Format: date-time */
+                from?: string;
+                /** Format: date-time */
+                to?: string;
+                counts?: {
+                    placed?: number;
+                    open?: number;
+                    confirmed?: number;
+                    cancelled?: number;
+                    shipped?: number;
+                    delivered?: number;
+                    refused?: number;
+                    timed?: number;
+                    /** @description Median time from order to confirmation, for orders Trik confirmed (`timed`) */
+                    median_confirm_minutes?: number | null;
+                };
+                /** @description Fractions 0–1; null when there is nothing to measure */
+                rates?: {
+                    /** @description confirmed / (confirmed + cancelled) */
+                    confirmation?: number | null;
+                    /** @description cancelled / (confirmed + cancelled) */
+                    cancellation?: number | null;
+                    /** @description refused / (delivered + refused): refused at the door */
+                    refusal?: number | null;
+                };
+            } | null;
+            after: {
+                /** Format: date-time */
+                from?: string;
+                /** Format: date-time */
+                to?: string;
+                counts?: {
+                    placed?: number;
+                    open?: number;
+                    confirmed?: number;
+                    cancelled?: number;
+                    shipped?: number;
+                    delivered?: number;
+                    refused?: number;
+                    timed?: number;
+                    /** @description Median time from order to confirmation, for orders Trik confirmed (`timed`) */
+                    median_confirm_minutes?: number | null;
+                };
+                /** @description Fractions 0–1; null when there is nothing to measure */
+                rates?: {
+                    /** @description confirmed / (confirmed + cancelled) */
+                    confirmation?: number | null;
+                    /** @description cancelled / (confirmed + cancelled) */
+                    cancellation?: number | null;
+                    /** @description refused / (delivered + refused): refused at the door */
+                    refusal?: number | null;
+                };
+            } | null;
+            /** @description After minus before, in percentage points */
+            change: {
+                confirmation?: number | null;
+                cancellation?: number | null;
+                refusal?: number | null;
+            } | null;
+            daily: {
+                /** Format: date */
+                date?: string;
+                placed?: number;
+                open?: number;
+                confirmed?: number;
+                cancelled?: number;
+                shipped?: number;
+                delivered?: number;
+                refused?: number;
+                timed?: number;
+                /** @description Median time from order to confirmation, for orders Trik confirmed (`timed`) */
+                median_confirm_minutes?: number | null;
+                /** @description Fractions 0–1; null when there is nothing to measure */
+                rates?: {
+                    /** @description confirmed / (confirmed + cancelled) */
+                    confirmation?: number | null;
+                    /** @description cancelled / (confirmed + cancelled) */
+                    cancellation?: number | null;
+                    /** @description refused / (delivered + refused): refused at the door */
+                    refusal?: number | null;
+                };
+            }[];
         };
     };
     responses: {
@@ -4334,6 +4471,95 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getPilotResults: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PilotResults"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePilotResults: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date-time */
+                    live_at?: string | null;
+                    baseline_days?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PilotResults"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    downloadPilotWeekly: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The workspace to act in. The caller must be a member. */
+                "X-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }
