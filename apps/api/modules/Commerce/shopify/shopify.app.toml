@@ -1,0 +1,28 @@
+# Trik's Shopify app configuration, deployed with the Shopify CLI (`shopify app deploy`).
+# Replace client_id and the API host (api.trik.chat) before deploying. See ../README.md.
+
+client_id = "REPLACE_WITH_CLIENT_ID"
+name = "Trik"
+application_url = "https://api.trik.chat/webhooks/shopify/app"
+# Not embedded: sellers use Trik's own web app, so the classic OAuth grant is used.
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,write_orders,read_fulfillments,read_customers"
+# Trik completes the authorization code grant itself (needed for a non-embedded app).
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = ["https://api.trik.chat/webhooks/shopify/oauth/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  topics = ["orders/create", "orders/updated", "orders/cancelled", "fulfillments/create", "fulfillments/update", "app/uninstalled"]
+  uri = "https://api.trik.chat/webhooks/shopify"
+
+  # Mandatory privacy webhooks (#333) go here before an App Store review:
+  # [[webhooks.subscriptions]]
+  # compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  # uri = "https://api.trik.chat/webhooks/shopify/compliance"

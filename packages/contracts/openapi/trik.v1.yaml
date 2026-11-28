@@ -20,6 +20,8 @@ tags:
 - name: Inbox
 - name: Orders
 - name: Confirmation
+- name: Commerce
+  description: 'Store connectors: Shopify (#332), then EasyOrders (#117). Orders arrive through webhooks and an initial backfill.'
 paths:
   /auth/register:
     post:
@@ -2665,6 +2667,160 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+  /commerce/stores:
+    get:
+      operationId: listStores
+      summary: The workspace's connected stores
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.view
+      description: Requires `commerce.stores.view`. Newest first, at most 50 (a workspace has a handful). Never includes access tokens. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+      responses:
+        '200':
+          description: Stores
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Store'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/shopify/install:
+    post:
+      operationId: installShopify
+      summary: Start connecting a Shopify store (OAuth)
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Returns the Shopify consent URL to send the browser to. Shopify then redirects to `GET /webhooks/shopify/oauth/callback`, which checks Shopify''s HMAC, the shop, the age (10 minutes), the single-use state and that the member still has `commerce.stores.manage`, stores the token encrypted, starts the order backfill, and sends the browser to `{web}/settings/stores?shopify=connected&store=<id>` (or `?shopify_error=<code>`: `invalid-signature`, `invalid-shop`, `expired`, `shop-mismatch`, `forbidden`, `store-connected-elsewhere`, `denied`, `shopify-error`). 409 `store-connected-elsewhere` when another workspace has this shop; 503 `shopify-not-configured`. 10 per minute. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - shop
+              properties:
+                shop:
+                  type: string
+                  maxLength: 255
+                  description: The store's myshopify.com address; "laila" or a full admin URL also work. Custom domains are refused (422).
+                  examples:
+                  - laila-fashion.myshopify.com
+      responses:
+        '200':
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - authorize_url
+                    - shop_domain
+                    properties:
+                      authorize_url:
+                        type: string
+                        format: uri
+                      shop_domain:
+                        type: string
+                        examples:
+                        - laila-fashion.myshopify.com
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/stores/{store}:
+    delete:
+      operationId: disconnectStore
+      summary: Disconnect a store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: Requires `commerce.stores.manage`. Drops the token and stops routing the store's webhooks here; orders already imported stay. The app stays installed in the store until the seller removes it there. Idempotent. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).
+      responses:
+        '204':
+          description: Disconnected
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /commerce/stores/{store}/backfill:
+    post:
+      operationId: backfillStore
+      summary: Import the store's recent orders again
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      - in: path
+        name: store
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Runs after a failure, or once Shopify grants `read_all_orders` (90 days instead of 60). Safe to repeat: imports are idempotent and never overwrite a newer version of an order. Imported orders placed more than 48 hours ago are never sent a confirmation message. 409 `store-not-connected`, `backfill-running`. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Store'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -3768,3 +3924,99 @@ components:
           - string
           - 'null'
           format: date-time
+    Store:
+      title: Store
+      type: object
+      required:
+      - id
+      - platform
+      - shop_domain
+      - status
+      - scopes
+      - backfill
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+          enum:
+          - shopify
+          - easyorders
+        shop_domain:
+          type: string
+          examples:
+          - laila-fashion.myshopify.com
+        name:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum:
+          - active
+          - uninstalled
+          - disconnected
+          description: '`uninstalled`: the app was removed in the store (or its token stopped working); `disconnected`: disconnected from Trik.'
+        scopes:
+          type: array
+          items:
+            type: string
+          description: As granted by the store
+        installed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        uninstalled_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_webhook_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Last delivery from the store (updated at most once a minute)
+        backfill:
+          type: object
+          required:
+          - status
+          - imported
+          - skipped
+          properties:
+            status:
+              type: string
+              enum:
+              - none
+              - queued
+              - running
+              - importing
+              - done
+              - failed
+            since:
+              type:
+              - string
+              - 'null'
+              format: date-time
+              description: Orders placed since this time
+            imported:
+              type: integer
+            skipped:
+              type: integer
+              description: Orders Trik cannot take (no usable phone number, no items)
+            started_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            finished_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            error:
+              type:
+              - string
+              - 'null'

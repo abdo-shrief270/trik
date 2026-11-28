@@ -84,6 +84,9 @@ jobs:
           OCTANE_SERVER: swoole
           MAIL_MAILER: log
           PGPASSWORD: trik
+          FEATURE_COMMERCE: all
+          SHOPIFY_CLIENT_ID: probe-client
+          SHOPIFY_CLIENT_SECRET: probe-shopify-secret
         run: |
           psql -h 127.0.0.1 -U trik -d trik_test -c "create database trik_probe"
           php artisan migrate --database=owner --force

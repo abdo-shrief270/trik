@@ -76,6 +76,20 @@ it('sends the confirmation template with the three buttons as soon as a COD orde
     Queue::assertPushed(SendOutgoingMessage::class);
 });
 
+it('never asks about an order placed long ago (a store backfill), only recent ones', function (): void {
+    $old = new OrderInput(OrderSource::Shopify, 'OLD-1', '#OLD-1', '01012345678', 'Mona', new Address(raw: '12 التحرير، الدقي'),
+        [new OrderItemInput('فستان', 1, 90000)], now()->subDays(20), shipping: 5000);
+    $edge = new OrderInput(OrderSource::Shopify, 'EDGE-1', '#EDGE-1', '01012345679', 'Nour', new Address(raw: '12 التحرير، الدقي'),
+        [new OrderItemInput('فستان', 1, 90000)], now()->subHours(47), shipping: 5000);
+
+    inWs($this->ws, fn () => app(RecordOrder::class)->handle($old));
+    inWs($this->ws, fn () => expect(ConfirmationRun::query()->count())->toBe(0)->and(Message::query()->count())->toBe(0));
+
+    inWs($this->ws, fn () => app(RecordOrder::class)->handle($edge));
+    inWs($this->ws, fn () => expect(ConfirmationRun::query()->count())->toBe(1));
+    Queue::assertPushed(SendOutgoingMessage::class, 1);
+});
+
 it('confirms the order when the customer presses Confirm, once, and thanks them', function (): void {
     Event::fake([OrderConfirmed::class]);
     $order = inWs($this->ws, fn () => app(RecordOrder::class)->handle(codOrder()));
