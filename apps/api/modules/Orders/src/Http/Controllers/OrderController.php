@@ -8,6 +8,7 @@ use App\Support\Authorization\PermissionRegistry;
 use App\Support\Authorization\WorkspacePermissions;
 use App\Support\Http\CursorPage;
 use App\Support\Http\Problem;
+use App\Support\Http\QueryFlag;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,13 +29,13 @@ use Modules\Orders\Infrastructure\Models\OrderEvent;
 
 final class OrderController
 {
-    /** Filters: status, contact_id, needs_address_fix=1. Newest first. */
+    /** Filters: status, contact_id, needs_address_fix (true/false or 1/0). Newest first. */
     public function index(Request $request, OrderPresenter $presenter): JsonResponse
     {
         $request->validate([
             'status' => ['sometimes', Rule::enum(OrderStatus::class)],
             'contact_id' => ['sometimes', 'uuid'],
-            'needs_address_fix' => ['sometimes', 'boolean'],
+            'needs_address_fix' => QueryFlag::rules(),
         ]);
 
         $page = Order::query()

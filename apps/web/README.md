@@ -42,8 +42,9 @@ and a live setup checklist; settings with language and signed-in devices; base c
 chat with the 24-hour window, replies, assignment, close/reopen, the order bar and the customer's orders with
 confirm/cancel. The **confirmation board** (`layers/confirmations`): stages with counts, filters (owner,
 governorate, risk, amount, dates), bulk confirm/remind/cancel with per-order results, an order drawer with the
-WhatsApp confirmation run and the timeline, and the **confirmation rules** page. The orders page is a placeholder
-until its PR. Not yet: 2FA and team invites
+WhatsApp confirmation run and the timeline, and the **confirmation rules** page. **Orders** (`layers/orders`): the
+list (status and "address needs fixing" filters), the order page (items and totals, note, owner, address edit and
+flag, confirm/cancel, confirmation run and timeline) and **New order** for orders taken on a call or in a chat. Not yet: 2FA and team invites
 (no API yet), dark mode, real-time (the inbox polls every 5–15 s, badges every minute, until the Centrifugo
 connection-token endpoint exists).
 

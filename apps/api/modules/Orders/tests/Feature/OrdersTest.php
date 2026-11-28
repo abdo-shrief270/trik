@@ -140,7 +140,13 @@ it('lets agents flag and fix an address in structured form before confirming', f
     inboxAs($agent['headers'])->patchJson("/v1/orders/{$id}", ['address_needs_fix' => true])->assertOk()
         ->assertJsonPath('data.next_action', 'fix_address');
     inboxAs($agent['headers'])->postJson("/v1/orders/{$id}/confirm")->assertConflict()->assertJsonPath('code', 'address-needs-fix');
-    expect(inboxAs($agent['headers'])->getJson('/v1/orders?needs_address_fix=1')->json('data.0.id'))->toBe($id);
+    // Generated clients send booleans as true/false in the query string; both spellings work.
+    foreach (['1', 'true'] as $flag) {
+        expect(inboxAs($agent['headers'])->getJson("/v1/orders?needs_address_fix={$flag}")->json('data'))->toHaveCount(1)
+            ->and(inboxAs($agent['headers'])->getJson("/v1/orders?needs_address_fix={$flag}")->json('data.0.id'))->toBe($id);
+    }
+    expect(inboxAs($agent['headers'])->getJson('/v1/orders?needs_address_fix=false')->json('data'))->toHaveCount(1);
+    inboxAs($agent['headers'])->getJson('/v1/orders?needs_address_fix=maybe')->assertUnprocessable();
 
     inboxAs($agent['headers'])->patchJson("/v1/orders/{$id}", ['address' => ['governorate' => 'GZ', 'area' => 'الدقي']])
         ->assertUnprocessable()->assertJsonPath('code', 'address-incomplete');
