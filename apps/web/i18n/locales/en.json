@@ -8,7 +8,8 @@
     "inbox": "Inbox",
     "confirmations": "Confirmations",
     "orders": "Orders",
-    "settings": "Settings"
+    "settings": "Settings",
+    "results": "Results"
   },
   "shell": {
     "skip": "Skip to content",
@@ -768,5 +769,66 @@
       "contacts": "one contact | {n} contacts",
       "stores": "one store record | {n} store records"
     }
+  },
+  "results": {
+    "title": "Results",
+    "sub": "Before and after Trik, from your cash-on-delivery orders' own statuses.",
+    "download": "Weekly spreadsheet",
+    "liveTitle": "Go-live",
+    "liveOn": "Trik went live on {date}",
+    "liveSet": "date you set",
+    "liveFirst": "your first WhatsApp confirmation",
+    "baselineDays": "compared with the {n} days before",
+    "notLive": "Results start with your first WhatsApp confirmation, or the date you set.",
+    "changeLive": "Change",
+    "liveDate": "Went live on",
+    "baselineLabel": "Compare with",
+    "days": "the {n} days before",
+    "save": "Save",
+    "useFirst": "Use the first confirmation",
+    "saved": "Saved. The results use the new dates.",
+    "empty": {
+      "title": "No results yet",
+      "body": "Once Trik confirms orders for you, this page compares them with the orders from before."
+    },
+    "promise": "Before and after",
+    "metric": {
+      "refusal": "Refused at the door",
+      "confirmation": "Confirmed",
+      "cancellation": "Cancelled"
+    },
+    "before": "Before",
+    "after": "With Trik",
+    "points": "{n} pts",
+    "of": {
+      "refusal": "{n} of {total} that reached the door",
+      "confirmation": "{n} of {total} decided orders",
+      "cancellation": "{n} of {total} decided orders"
+    },
+    "wasBefore": "Before: {n} of {total}",
+    "counts": "Orders",
+    "status": "Status",
+    "since": "since {date}",
+    "row": {
+      "placed": "Placed",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "refused": "Refused at the door",
+      "open": "Still waiting to confirm",
+      "timeToConfirm": "Time to confirm (median)"
+    },
+    "recent": "Last 14 days",
+    "noRecent": "No orders in the last days.",
+    "day": "Day",
+    "units": {
+      "h": "h",
+      "min": "min"
+    },
+    "note": "Numbers follow the statuses your store reports. Delivered and refused orders show up as your courier updates the store; recent orders are still on their way.",
+    "cardTitle": "Your results with Trik",
+    "cardSub": "Compared with your orders before Trik.",
+    "see": "See the results"
   }
 }

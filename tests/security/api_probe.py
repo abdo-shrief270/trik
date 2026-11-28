@@ -345,6 +345,14 @@ if risk_order:
     r = call("GET", f"/v1/orders/{risk_order}/risk", B["token"], B["ws"])
     check("another workspace cannot read an order's risk (IDOR)", r.status_code == 404, r.status_code)
 
+# ---------------- pilot results
+r = call("GET", "/v1/analytics/pilot", AGENT["token"], A["ws"])
+check("an agent cannot see the pilot results", r.status_code == 403, r.status_code)
+r = call("GET", "/v1/analytics/pilot/weekly.csv", B["token"], A["ws"])
+check("a non-member cannot download another workspace's results", r.status_code in (403, 404), r.status_code)
+r = call("PUT", "/v1/analytics/pilot", A["token"], A["ws"], {"live_at": "2099-01-01T00:00:00Z"})
+check("the go-live date cannot be in the future", r.status_code == 422, f"{r.status_code} {r.text[:100]}")
+
 # ---------------- privacy requests (Shopify's mandatory webhooks)
 def privacy_hook(topic, payload, secret=None, delivery=None):
     raw = json.dumps({"shop_id": 1, "shop_domain": SHOP, **payload})

@@ -4,7 +4,7 @@ const { t } = useI18n()
 const session = useSessionStore()
 useHead({ title: () => `${t('nav.home')} · ${t('brand.name')}` })
 
-type Step = 'done' | 'todo' | 'noAccess' | 'needsEmail' | 'unknown'
+type Step = 'done' | 'todo' | 'noAccess' | 'needsEmail' | 'unknown' | 'soon'
 
 /**
  * One step's state from an API read: done/todo from the data. A 403 is either an unverified email (these
@@ -14,6 +14,7 @@ async function probe(read: () => Promise<boolean>): Promise<Step> {
   try {
     return (await read()) ? 'done' : 'todo'
   } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return 'soon' // not rolled out for this workspace yet
     if (!(e instanceof ApiError) || e.status !== 403) return 'unknown'
     return e.code === 'email-not-verified' ? 'needsEmail' : 'noAccess'
   }
@@ -23,11 +24,12 @@ const { data: setup, status } = useAsyncData(
   () => `setup:${session.workspaceId}`,
   async () => {
     const api = useApi()
-    const [whatsapp, confirmation] = await Promise.all([
+    const [whatsapp, confirmation, store] = await Promise.all([
       probe(async () => ((await call(api.GET('/whatsapp/numbers', { params: inWorkspace() }))).data?.length ?? 0) > 0),
       probe(async () => !!(await call(api.GET('/confirmation/settings', { params: inWorkspace() }))).data?.enabled),
+      probe(async () => ((await call(api.GET('/commerce/stores', { params: inWorkspace() }))).data ?? []).some((s) => s.status === 'active')),
     ])
-    return { whatsapp, confirmation }
+    return { whatsapp, confirmation, store }
   },
   { watch: [() => session.workspaceId, () => session.user?.email_verified] },
 )
@@ -36,7 +38,7 @@ const steps = computed(() => [
   { id: 'email', icon: 'mail' as const, state: (session.user?.email_verified ? 'done' : 'todo') as Step },
   { id: 'whatsapp', icon: 'phone' as const, state: setup.value?.whatsapp ?? ('unknown' as Step) },
   { id: 'confirmation', icon: 'rules' as const, state: setup.value?.confirmation ?? ('unknown' as Step) },
-  { id: 'store', icon: 'store' as const, state: 'soon' as const },
+  { id: 'store', icon: 'store' as const, state: setup.value?.store ?? ('unknown' as Step) },
 ])
 const doneCount = computed(() => steps.value.filter((s) => s.state === 'done').length)
 
@@ -49,6 +51,8 @@ const firstName = computed(() => session.user?.name?.split(/\s+/)[0] ?? '')
     <p class="mt-2 text-lg text-muted">{{ t('home.sub', { workspace: session.workspace?.name ?? '' }) }}</p>
 
     <!-- Where work is waiting -->
+    <ResultsCard class="mt-10" />
+
     <section class="mt-10" :aria-labelledby="'waiting'">
       <h2 id="waiting" class="text-sm font-semibold text-muted">{{ t('home.waiting') }}</h2>
       <ul class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

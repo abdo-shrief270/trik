@@ -26,6 +26,8 @@ tags:
   description: 'Privacy requests from store platforms (Shopify''s mandatory customers/data_request, customers/redact and shop/redact webhooks at `POST /webhooks/shopify/compliance`, #333): data exports for the store owner and redaction across modules, recorded in the workspace audit log.'
 - name: Risk
   description: 'Refusal risk (#115): a score 0–100 per order from the seller''s own data only (the customer''s history with this seller and the order itself), from explainable rules whose points sum to the score. Scored on creation and edits, and when one of the customer''s orders ends. Also on `Order.risk_score`, which the board filters on (`min_risk`).'
+- name: Analytics
+  description: 'Pilot results (#345): before vs after Trik per seller, from the cash-on-delivery orders'' own statuses (which follow the store). The baseline is the orders placed in the days before go-live (90 by default, what the store backfill imports); go-live is the date the seller sets, or the first WhatsApp confirmation. Days are Cairo days.'
 paths:
   /auth/register:
     post:
@@ -3160,6 +3162,98 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /analytics/pilot:
+    get:
+      operationId: getPilotResults
+      summary: Before vs after Trik
+      tags:
+      - Analytics
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: analytics.reports.view
+      description: Requires `analytics.reports.view`. `baseline`, `after` and `change` are null until there is a go-live date. `daily` covers the last 60 days (days without orders are left out).
+      responses:
+        '200':
+          description: The results
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PilotResults'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      operationId: updatePilotResults
+      summary: Set the go-live date and the baseline length
+      tags:
+      - Analytics
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: analytics.reports.manage
+      description: 'Requires `analytics.reports.manage`. `live_at: null` goes back to the first WhatsApp confirmation. Not in the future.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                live_at:
+                  type:
+                  - string
+                  - 'null'
+                  format: date-time
+                baseline_days:
+                  type: integer
+                  minimum: 14
+                  maximum: 180
+      responses:
+        '200':
+          description: The results
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PilotResults'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /analytics/pilot/weekly.csv:
+    get:
+      operationId: downloadPilotWeekly
+      summary: Weekly results as a spreadsheet
+      tags:
+      - Analytics
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: analytics.reports.view
+      description: 'Requires `analytics.reports.view`. One row per week (Monday, Cairo) from the start of the baseline: week, period (before, go-live week, after), orders, confirmed, cancelled, shipped, delivered, refused, open, the three rates and the median minutes to confirm. UTF-8 with a BOM (opens in Excel). 20 per minute.'
+      responses:
+        '200':
+          description: CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     bearerAuth:
@@ -4577,3 +4671,209 @@ components:
                   type: integer
                 late_night:
                   type: integer
+    PilotResults:
+      title: PilotResults
+      type: object
+      required:
+      - live_at
+      - live_at_source
+      - baseline_days
+      - timezone
+      - baseline
+      - after
+      - change
+      - daily
+      properties:
+        live_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        live_at_source:
+          type:
+          - string
+          - 'null'
+          enum:
+          - set
+          - first_confirmation
+          - null
+        baseline_days:
+          type: integer
+        timezone:
+          type: string
+          examples:
+          - Africa/Cairo
+        baseline:
+          type:
+          - object
+          - 'null'
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+            counts:
+              type: object
+              properties:
+                placed:
+                  type: integer
+                open:
+                  type: integer
+                confirmed:
+                  type: integer
+                cancelled:
+                  type: integer
+                shipped:
+                  type: integer
+                delivered:
+                  type: integer
+                refused:
+                  type: integer
+                timed:
+                  type: integer
+                median_confirm_minutes:
+                  type:
+                  - number
+                  - 'null'
+                  description: Median time from order to confirmation, for orders Trik confirmed (`timed`)
+            rates:
+              type: object
+              description: Fractions 0–1; null when there is nothing to measure
+              properties:
+                confirmation:
+                  type:
+                  - number
+                  - 'null'
+                  description: confirmed / (confirmed + cancelled)
+                cancellation:
+                  type:
+                  - number
+                  - 'null'
+                  description: cancelled / (confirmed + cancelled)
+                refusal:
+                  type:
+                  - number
+                  - 'null'
+                  description: 'refused / (delivered + refused): refused at the door'
+        after:
+          type:
+          - object
+          - 'null'
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+            counts:
+              type: object
+              properties:
+                placed:
+                  type: integer
+                open:
+                  type: integer
+                confirmed:
+                  type: integer
+                cancelled:
+                  type: integer
+                shipped:
+                  type: integer
+                delivered:
+                  type: integer
+                refused:
+                  type: integer
+                timed:
+                  type: integer
+                median_confirm_minutes:
+                  type:
+                  - number
+                  - 'null'
+                  description: Median time from order to confirmation, for orders Trik confirmed (`timed`)
+            rates:
+              type: object
+              description: Fractions 0–1; null when there is nothing to measure
+              properties:
+                confirmation:
+                  type:
+                  - number
+                  - 'null'
+                  description: confirmed / (confirmed + cancelled)
+                cancellation:
+                  type:
+                  - number
+                  - 'null'
+                  description: cancelled / (confirmed + cancelled)
+                refusal:
+                  type:
+                  - number
+                  - 'null'
+                  description: 'refused / (delivered + refused): refused at the door'
+        change:
+          type:
+          - object
+          - 'null'
+          description: After minus before, in percentage points
+          properties:
+            confirmation:
+              type:
+              - number
+              - 'null'
+            cancellation:
+              type:
+              - number
+              - 'null'
+            refusal:
+              type:
+              - number
+              - 'null'
+        daily:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              placed:
+                type: integer
+              open:
+                type: integer
+              confirmed:
+                type: integer
+              cancelled:
+                type: integer
+              shipped:
+                type: integer
+              delivered:
+                type: integer
+              refused:
+                type: integer
+              timed:
+                type: integer
+              median_confirm_minutes:
+                type:
+                - number
+                - 'null'
+                description: Median time from order to confirmation, for orders Trik confirmed (`timed`)
+              rates:
+                type: object
+                description: Fractions 0–1; null when there is nothing to measure
+                properties:
+                  confirmation:
+                    type:
+                    - number
+                    - 'null'
+                    description: confirmed / (confirmed + cancelled)
+                  cancellation:
+                    type:
+                    - number
+                    - 'null'
+                    description: cancelled / (confirmed + cancelled)
+                  refusal:
+                    type:
+                    - number
+                    - 'null'
+                    description: 'refused / (delivered + refused): refused at the door'
