@@ -24,6 +24,8 @@ tags:
   description: 'Store connectors: Shopify (#332), then EasyOrders (#117). Orders arrive through webhooks and an initial backfill.'
 - name: Compliance
   description: 'Privacy requests from store platforms (Shopify''s mandatory customers/data_request, customers/redact and shop/redact webhooks at `POST /webhooks/shopify/compliance`, #333): data exports for the store owner and redaction across modules, recorded in the workspace audit log.'
+- name: Risk
+  description: 'Refusal risk (#115): a score 0–100 per order from the seller''s own data only (the customer''s history with this seller and the order itself), from explainable rules whose points sum to the score. Scored on creation and edits, and when one of the customer''s orders ends. Also on `Order.risk_score`, which the board filters on (`min_risk`).'
 paths:
   /auth/register:
     post:
@@ -3012,6 +3014,152 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /orders/{order}/risk:
+    get:
+      operationId: getOrderRisk
+      summary: An order's refusal risk, and why
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - in: path
+        name: order
+        required: true
+        schema:
+          type: string
+          format: uuid
+      x-permission: orders.orders.view
+      description: Requires `orders.orders.view`. 404 `risk-not-scored` before the order is scored. `top` is the three biggest reasons (not the baseline); `reasons` all of them, whose points sum to the score (before clamping to 0–100). The first time a score reaches the threshold, a `risk_flagged` entry lands on the order timeline. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      responses:
+        '200':
+          description: The risk
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrderRisk'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /risk/settings:
+    get:
+      operationId: getRiskSettings
+      summary: The refusal risk threshold and weights
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: risk.settings.view
+      description: Requires `risk.settings.view`. The weights in effect (defaults plus the seller's changes) and the defaults. Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RiskSettings'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateRiskSettings
+      summary: Change the threshold or weights
+      tags:
+      - Risk
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: risk.settings.manage
+      description: Requires `risk.settings.manage`. Only the fields given change; weights are points per rule (−50…50). Open orders are scored again with them (queued, the most recent 2,000). Returns 404 where refusal risk is not rolled out yet (feature flag `risk`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                threshold:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                weights:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    baseline:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    refused_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    cancelled_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    unreachable_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    delivered_before:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    first_order:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    high_value:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    address_incomplete:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    address_flagged:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+                    late_night:
+                      type: integer
+                      minimum: -50
+                      maximum: 50
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RiskSettings'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -4286,3 +4434,146 @@ components:
           - string
           - 'null'
           format: date-time
+    RiskReason:
+      type: object
+      required:
+      - code
+      - points
+      - params
+      - text
+      properties:
+        code:
+          type: string
+          enum:
+          - baseline
+          - refused_before
+          - cancelled_before
+          - unreachable_before
+          - delivered_before
+          - first_order
+          - high_value
+          - address_incomplete
+          - address_flagged
+          - late_night
+          - prepaid
+        points:
+          type: integer
+        params:
+          type: object
+          additionalProperties:
+            type: number
+          description: e.g. count, amount and usual (minor units), ratio, hour
+        text:
+          type: object
+          required:
+          - ar
+          - en
+          properties:
+            ar:
+              type: string
+            en:
+              type: string
+          description: Plain words, e.g. "Refused 2 earlier order(s) at the door"
+    OrderRisk:
+      title: OrderRisk
+      type: object
+      required:
+      - order_id
+      - score
+      - threshold
+      - flagged
+      - top
+      - reasons
+      - model
+      - computed_at
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        threshold:
+          type: integer
+        flagged:
+          type: boolean
+          description: score ≥ threshold
+        top:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/RiskReason'
+        reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskReason'
+        model:
+          type: string
+          examples:
+          - rules-v1
+        computed_at:
+          type: string
+          format: date-time
+    RiskSettings:
+      title: RiskSettings
+      type: object
+      required:
+      - threshold
+      - weights
+      - defaults
+      properties:
+        threshold:
+          type: integer
+          description: Orders scoring this or more are flagged
+        weights:
+          type: object
+          properties:
+            baseline:
+              type: integer
+            refused_before:
+              type: integer
+            cancelled_before:
+              type: integer
+            unreachable_before:
+              type: integer
+            delivered_before:
+              type: integer
+            first_order:
+              type: integer
+            high_value:
+              type: integer
+            address_incomplete:
+              type: integer
+            address_flagged:
+              type: integer
+            late_night:
+              type: integer
+        defaults:
+          type: object
+          properties:
+            threshold:
+              type: integer
+            weights:
+              type: object
+              properties:
+                baseline:
+                  type: integer
+                refused_before:
+                  type: integer
+                cancelled_before:
+                  type: integer
+                unreachable_before:
+                  type: integer
+                delivered_before:
+                  type: integer
+                first_order:
+                  type: integer
+                high_value:
+                  type: integer
+                address_incomplete:
+                  type: integer
+                address_flagged:
+                  type: integer
+                late_night:
+                  type: integer

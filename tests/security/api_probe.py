@@ -333,6 +333,18 @@ check("a setting of another platform is refused", r.status_code == 422, f"{r.sta
 r = call("PATCH", f"/v1/commerce/stores/{eo_store}", B["token"], B["ws"], {"settings": {"write_status": False}})
 check("another workspace cannot change an EasyOrders store (IDOR)", r.status_code == 404, r.status_code)
 
+# ---------------- refusal risk
+r = call("PUT", "/v1/risk/settings", AGENT["token"], A["ws"], {"threshold": 99})
+check("an agent cannot change the risk threshold", r.status_code == 403, r.status_code)
+r = call("PUT", "/v1/risk/settings", A["token"], A["ws"], {"weights": {"first_order": 500, "is_admin": 1}})
+check("risk weights are bounded and unknown rules refused", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("PUT", "/v1/risk/settings", B["token"], A["ws"], {"threshold": 1})
+check("a non-member cannot change another workspace's risk settings", r.status_code in (403, 404), r.status_code)
+risk_order = sql(f"select id from orders_orders where workspace_id = '{A['ws']}' limit 1")
+if risk_order:
+    r = call("GET", f"/v1/orders/{risk_order}/risk", B["token"], B["ws"])
+    check("another workspace cannot read an order's risk (IDOR)", r.status_code == 404, r.status_code)
+
 # ---------------- privacy requests (Shopify's mandatory webhooks)
 def privacy_hook(topic, payload, secret=None, delivery=None):
     raw = json.dumps({"shop_id": 1, "shop_domain": SHOP, **payload})

@@ -28,5 +28,7 @@ return [
         'orders' => env('FEATURE_ORDERS', 'all'),
         // Store connectors (Shopify): pilot sellers first.
         'commerce' => env('FEATURE_COMMERCE', 'none'),
+        // Refusal risk score (#115).
+        'risk' => env('FEATURE_RISK', 'none'),
     ],
 ];
