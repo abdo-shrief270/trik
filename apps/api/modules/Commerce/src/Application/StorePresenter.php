@@ -24,6 +24,7 @@ final class StorePresenter
             'installed_at' => $store->installed_at?->toIso8601String(),
             'uninstalled_at' => $store->uninstalled_at?->toIso8601String(),
             'last_webhook_at' => $store->last_webhook_at?->toIso8601String(),
+            'settings' => $store->effectiveSettings(),
             'backfill' => [
                 'status' => $b['status'] ?? 'none',
                 'since' => $b['since'] ?? null,

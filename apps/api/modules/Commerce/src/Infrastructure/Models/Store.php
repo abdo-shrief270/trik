@@ -27,6 +27,7 @@ use Modules\Commerce\Domain\StoreStatus;
  * @property Carbon|null $uninstalled_at
  * @property array<string, mixed> $backfill status, operation, since, count, skipped, error, started_at, finished_at
  * @property Carbon|null $last_webhook_at
+ * @property array<string, bool> $settings see SETTINGS
  * @property Carbon $created_at
  */
 final class Store extends Model
@@ -36,7 +37,7 @@ final class Store extends Model
 
     protected $table = 'commerce_stores';
 
-    protected $fillable = ['platform', 'shop_domain', 'name', 'access_token', 'scopes', 'status', 'installed_by', 'installed_at', 'uninstalled_at', 'backfill', 'last_webhook_at'];
+    protected $fillable = ['platform', 'shop_domain', 'name', 'access_token', 'scopes', 'status', 'installed_by', 'installed_at', 'uninstalled_at', 'backfill', 'last_webhook_at', 'settings'];
 
     protected $hidden = ['access_token'];
 
@@ -48,10 +49,37 @@ final class Store extends Model
             'status' => StoreStatus::class,
             'access_token' => 'encrypted',
             'backfill' => 'array',
+            'settings' => 'array',
             'installed_at' => 'datetime',
             'uninstalled_at' => 'datetime',
             'last_webhook_at' => 'datetime',
         ];
+    }
+
+    /**
+     * What Trik writes back to the store, and the defaults. Cancelling in the store is opt-in: it
+     * restocks the items there, which a seller should choose knowingly.
+     */
+    public const SETTINGS = [
+        'tag_orders' => true,      // tag orders trik-confirmed / trik-cancelled
+        'write_address' => true,   // send an address fixed in Trik to the store
+        'cancel_in_store' => false, // cancel (and restock) the order in the store when it's cancelled in Trik
+    ];
+
+    public function setting(string $key): bool
+    {
+        return (bool) ($this->settings[$key] ?? self::SETTINGS[$key] ?? false);
+    }
+
+    /** @return array<string, bool> */
+    public function effectiveSettings(): array
+    {
+        $out = [];
+        foreach (array_keys(self::SETTINGS) as $key) {
+            $out[$key] = $this->setting($key);
+        }
+
+        return $out;
     }
 
     /** @return list<string> */

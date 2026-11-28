@@ -39,6 +39,8 @@ beforeEach(function (): void {
     config(['commerce.shopify.client_id' => 'cid', 'commerce.shopify.client_secret' => 'shh', 'trik.features.commerce' => 'all']);
     Queue::fake([SendOutgoingMessage::class]);
     Http::preventStrayRequests();
+    // cancelling a Shopify order in Trik tags it in Shopify (write-back)
+    Http::fake(['*.myshopify.com/*' => gqlResponse(['tagsAdd' => ['userErrors' => []], 'tagsRemove' => ['userErrors' => []]])]);
 
     $this->owner = ownerWithWorkspace('Laila Fashion');
     $this->ws = $this->owner['workspace'];

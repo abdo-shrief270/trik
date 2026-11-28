@@ -48,6 +48,23 @@ final class StoreController
         ]]);
     }
 
+    /** What Trik writes back to the store (Store::SETTINGS); only the keys given change. */
+    public function update(Request $request, string $store): JsonResponse
+    {
+        $data = $request->validate([
+            'settings' => ['required', 'array:'.implode(',', array_keys(Store::SETTINGS))],
+            ...array_combine(
+                array_map(fn (string $k): string => "settings.{$k}", array_keys(Store::SETTINGS)),
+                array_fill(0, count(Store::SETTINGS), ['sometimes', 'boolean']),
+            ),
+        ]);
+
+        $model = $this->find($store);
+        $model->update(['settings' => [...$model->effectiveSettings(), ...array_map(fn (mixed $v): bool => (bool) $v, $data['settings'])]]);
+
+        return response()->json(['data' => $this->presenter->present($model)]);
+    }
+
     /** Drops the token and stops routing the shop's webhooks here. The app stays in the store until removed there. */
     public function destroy(string $store): Response
     {
