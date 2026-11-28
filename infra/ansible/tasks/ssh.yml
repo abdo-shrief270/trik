@@ -21,6 +21,14 @@
       command="{{ app_dir }}/bin/ci-deploy",restrict {{ ci_deploy_key }}
       {% endif %}
 
+- name: The deploy user administers the server (it logs in with keys only; the CI key stays forced to deploy)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/90-trik-deploy
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+    content: |
+      {{ deploy_user }} ALL=(ALL) NOPASSWD:ALL
+
 - name: Harden sshd (keys only, no root, only the deploy user)
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/10-trik.conf
@@ -36,6 +44,9 @@
       MaxAuthTries 3
       LoginGraceTime 30
   notify: Restart ssh
+
+- name: Apply the sshd changes now (a failed later task must not leave the old settings running)
+  ansible.builtin.meta: flush_handlers
 
 - name: Ban repeated SSH failures
   ansible.builtin.copy:
