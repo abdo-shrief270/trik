@@ -44,7 +44,11 @@ confirm/cancel. The **confirmation board** (`layers/confirmations`): stages with
 governorate, risk, amount, dates), bulk confirm/remind/cancel with per-order results, an order drawer with the
 WhatsApp confirmation run and the timeline, and the **confirmation rules** page. **Orders** (`layers/orders`): the
 list (status and "address needs fixing" filters), the order page (items and totals, note, owner, address edit and
-flag, confirm/cancel, confirmation run and timeline) and **New order** for orders taken on a call or in a chat. Not yet: 2FA and team invites
+flag, confirm/cancel, confirmation run and timeline) and **New order** for orders taken on a call or in a chat.
+**Settings** (`layers/settings`, with a section nav): account, **Stores** (connect Shopify or EasyOrders, the first import's
+progress, what Trik writes back, disconnect, re-import; handles the platforms' redirects back), **Refusal risk** (threshold
+and per-rule points), **Privacy requests** (store platforms' data and erasure requests, export download). Orders show their
+refusal risk and top reasons (`OrderRisk`). Sections whose feature isn't rolled out for the workspace say so. Not yet: 2FA and team invites
 (no API yet), dark mode, real-time (the inbox polls every 5–15 s, badges every minute, until the Centrifugo
 connection-token endpoint exists).
 

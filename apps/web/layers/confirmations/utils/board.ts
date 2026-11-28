@@ -116,7 +116,21 @@ export function eventView(e: { type?: string; data?: Record<string, unknown> | n
     case 'address_unflagged':
     case 'note_changed':
     case 'owner_changed':
+    case 'confirmation_sent':
+    case 'confirmation_reminder':
+    case 'confirmation_escalated':
+    case 'needs_call':
+    case 'needs_call_cleared':
       return { key: `board.event.${e.type}`, params: {} }
+    case 'confirmation_reply':
+      return { key: 'board.event.confirmation_reply', params: { action: s(data.action) } }
+    case 'confirmation_failed':
+      return { key: 'board.event.confirmation_failed', params: {} }
+    case 'store_updated':
+    case 'store_update_failed':
+      return { key: `board.event.${e.type}`, params: { store: s(data.store) } }
+    case 'risk_flagged':
+      return { key: 'board.event.risk_flagged', params: { score: typeof data.score === 'number' ? String(data.score) : '' } }
     default:
       return { key: 'board.event.other', params: {} }
   }
