@@ -4,6 +4,9 @@
     shell: /bin/bash
     create_home: true
 
+- name: SSH directory (before the keys go in)
+  ansible.builtin.file: { path: "/home/{{ deploy_user }}/.ssh", state: directory, owner: "{{ deploy_user }}", mode: "0700" }
+
 - name: Deploy user's keys (full access) and the CI key (forced to the deploy command only)
   ansible.builtin.copy:
     dest: "/home/{{ deploy_user }}/.ssh/authorized_keys"
@@ -17,9 +20,6 @@
       {% if ci_deploy_key %}
       command="{{ app_dir }}/bin/ci-deploy",restrict {{ ci_deploy_key }}
       {% endif %}
-
-- name: SSH directory permissions
-  ansible.builtin.file: { path: "/home/{{ deploy_user }}/.ssh", state: directory, owner: "{{ deploy_user }}", mode: "0700" }
 
 - name: Harden sshd (keys only, no root, only the deploy user)
   ansible.builtin.copy:
