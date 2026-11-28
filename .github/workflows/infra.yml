@@ -1,0 +1,44 @@
+name: Infra
+
+# The production files (compose, deploy and backup scripts, the postgres image, Ansible).
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/infra.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/infra.yml"]
+
+permissions: { contents: read }
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: ShellCheck
+        run: shellcheck -S warning infra/production/*.sh infra/production/postgres/trik-pgbackrest infra/production/postgres/*.sh
+
+      - name: Compose file
+        working-directory: infra/production
+        run: |
+          printf '%s\n' IMAGE_REPO=x IMAGE_TAG=x POSTGRES_SUPERUSER_PASSWORD=x DB_OWNER_PASSWORD=x DB_API_PASSWORD=x \
+            REDIS_PASSWORD=x CENTRIFUGO_API_KEY=x CENTRIFUGO_TOKEN_HMAC_SECRET=x BACKUP_CIPHER_PASS=x > .env
+          touch app.env
+          docker compose config --quiet
+          rm .env app.env
+
+      - name: Ansible syntax
+        run: |
+          pipx install ansible-core
+          ansible-galaxy collection install community.general ansible.posix
+          cd infra/ansible
+          ansible-playbook --syntax-check -i localhost, site.yml -e @vault.example.yml -e @vars.yml
+
+      - name: Backups (build the image, back up, archive WAL, restore)
+        run: infra/production/test-backups.sh

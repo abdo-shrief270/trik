@@ -105,6 +105,11 @@ cat .live_tag .previous_tag               # what runs now, and before
 ./deploy.sh "$(cat .previous_tag)"        # or any earlier release, e.g. v1.1.0
 ```
 
+## Backups
+
+PostgreSQL is archived continuously and backed up every night, encrypted, on the server and (once its bucket is
+set) off it: **[backups.md](backups.md)** (restore, drill, alerts).
+
 ## Everyday commands (on the server, in /srv/trik/infra/production)
 
 ```bash

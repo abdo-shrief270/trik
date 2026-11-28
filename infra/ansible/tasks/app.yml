@@ -19,6 +19,9 @@
     - { src: production/compose.yml, mode: "0640" }
     - { src: production/centrifugo.json, mode: "0640" }
     - { src: production/deploy.sh, mode: "0750" }
+    - { src: production/backup.sh, mode: "0750" }
+    - { src: production/postgres/Dockerfile, mode: "0644" }
+    - { src: production/postgres/trik-pgbackrest, mode: "0755" }
     - { src: production/postgres/10-roles.sh, mode: "0755" }
     - { src: docker/postgres/init/01-extensions.sql, mode: "0644" }
     - { src: postgres/roles.sql, mode: "0644" }

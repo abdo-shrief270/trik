@@ -30,7 +30,7 @@ fail() {
 log "deploying ${tag} (live: ${live:-none})"
 set_tag "$tag"
 
-if ! docker compose pull --quiet; then
+if ! docker compose pull --quiet --ignore-buildable; then
   set_tag "${live:-$tag}"
   log "pull failed; nothing changed"
   exit 1

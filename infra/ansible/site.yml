@@ -37,3 +37,5 @@
       ansible.builtin.import_tasks: tasks/firewall.yml
     - name: Trik application files and secrets
       ansible.builtin.import_tasks: tasks/app.yml
+    - name: Database backups
+      ansible.builtin.import_tasks: tasks/backups.yml
