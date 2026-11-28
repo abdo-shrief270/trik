@@ -14,6 +14,6 @@ Route::prefix('shopify')->name('commerce.shopify.')->group(function (): void {
 });
 
 Route::prefix('easyorders')->name('commerce.easyorders.')->group(function (): void {
-    Route::post('install/{token}', [EasyOrdersController::class, 'install'])->where('token', '[A-Za-z0-9]{48}')->name('install');
+    Route::post('install/{token}', [EasyOrdersController::class, 'install'])->where('token', '[A-Za-z0-9]{48}')->name('authorized');
     Route::post('{hook}', [EasyOrdersController::class, 'webhook'])->where('hook', '[A-Za-z0-9]{48}')->name('webhook');
 });
