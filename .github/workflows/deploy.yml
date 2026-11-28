@@ -1,19 +1,21 @@
 name: Deploy
 
-# Builds the API and edge images, pushes them to GHCR, and ships them to the production server.
-# Off until the server exists: set the repository variable DEPLOY_ENABLED=true (Settings → Variables).
-# Merging to main only BUILDS the images. Going live is a person's decision: Actions → Deploy → Run workflow
-# (on main to ship the latest; with a tag to roll back). Required reviewers would gate it in the UI, but they need a
-# paid plan for a private repository, so the manual run is the gate.
-# Server setup and config changes go through Ansible (infra/ansible); this workflow only ships releases.
+# Ships GitHub releases to the production server. Server setup and config changes go through Ansible
+# (infra/ansible); this workflow only ships releases. Off until the server exists: set the repository variable
+# DEPLOY_ENABLED=true (Settings → Variables).
+#
+#   Publish a release (Releases → Draft a new release → tag v1.2.0 on main → Publish)
+#     → builds the API and edge images tagged v1.2.0 and puts them live. Publishing is the approval.
+#   A pre-release (v1.3.0-rc1, "Set as a pre-release") builds the images but never goes live.
+#   Choose what runs in production: Actions → Deploy → Run workflow → a release (an earlier one rolls back).
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Redeploy an existing image tag (e.g. a previous commit SHA) instead of building"
-        required: false
+      release:
+        description: "The release to put live, e.g. v1.2.0 (an earlier one rolls back; its images must have been built)"
+        required: true
 
 concurrency:
   group: deploy-production
@@ -28,14 +30,23 @@ env:
 
 jobs:
   build:
-    if: vars.DEPLOY_ENABLED == 'true' && inputs.tag == ''
+    if: vars.DEPLOY_ENABLED == 'true' && github.event_name == 'release'
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - id: meta
-        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+        name: The release is a version on main
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "Release tags look like v1.2.0 (or v1.3.0-rc1), not '$TAG'"; exit 1; }
+          git merge-base --is-ancestor HEAD origin/main || { echo "$TAG points at a commit that isn't on main: only reviewed code ships"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
@@ -47,7 +58,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/trik-api:${{ steps.meta.outputs.tag }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
-      - name: Edge image (Caddy + landing site)
+      - name: Edge image (Caddy + landing site + web app)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -62,29 +73,50 @@ jobs:
 
   deploy:
     needs: build
-    if: always() && vars.DEPLOY_ENABLED == 'true' && github.event_name == 'workflow_dispatch' && (needs.build.result == 'success' || inputs.tag != '')
+    # A published release (not a pre-release) once built, or a release chosen by hand.
+    if: >-
+      always() && vars.DEPLOY_ENABLED == 'true' && (
+        (github.event_name == 'release' && !github.event.release.prerelease && needs.build.result == 'success') ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
-    # Runs only when started by hand (see the top). With a paid plan, required reviewers on this environment add a second gate.
-    environment: production
+    environment:
+      name: production
+      url: https://app.trik.chat
     steps:
+      - name: Which release
+        id: release
+        env:
+          TAG: ${{ github.event_name == 'release' && needs.build.outputs.tag || inputs.release }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "Release tags look like v1.2.0, not '$TAG'"; exit 1; }
+          # it must be a published release (not a draft, not a pre-release)
+          info=$(gh api "repos/$GH_REPO/releases/tags/$TAG" --jq '"\(.draft) \(.prerelease)"') || { echo "No release $TAG"; exit 1; }
+          [[ "$info" == "false false" ]] || { echo "$TAG is a draft or a pre-release: publish it as a full release first"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "### Putting $TAG live" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Ship
         env:
-          TAG: ${{ inputs.tag || needs.build.outputs.tag }}
+          TAG: ${{ steps.release.outputs.tag }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          [[ "$TAG" =~ ^[A-Za-z0-9._-]{1,128}$ ]] || { echo "bad tag"; exit 1; }
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           # The key is locked to a forced command on the server: this is all it can do.
+          # deploy.sh pulls the images, migrates, switches, checks health, and rolls back by itself on failure.
           ssh -i ~/.ssh/deploy -o StrictHostKeyChecking=yes "deploy@${HOST}" "deploy ${TAG}"
 
       - name: Check from the outside
         run: |
           set -euo pipefail
-          for url in https://api.trik.chat/healthz https://trik.chat/; do
+          for url in https://api.trik.chat/healthz https://trik.chat/ https://app.trik.chat/; do
             curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$url" && echo "ok $url"
           done
