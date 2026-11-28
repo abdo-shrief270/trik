@@ -327,7 +327,8 @@
     "contact": "Contact",
     "privacy": "Privacy",
     "terms": "Terms",
-    "rights": "© {year} Trik. All rights reserved."
+    "rights": "© {year} Trik. All rights reserved.",
+    "legal": "Legal"
   },
   "meta": {
     "home": {
@@ -345,6 +346,14 @@
     "pricing": {
       "title": "Pricing · Trik",
       "description": "Monthly plans in EGP with a bundle of orders. No charge per contact, conversation or message."
+    },
+    "privacy": {
+      "title": "Privacy Policy · Trik",
+      "description": "What Trik collects, why, who sees it, and your rights. Trik's website sets no cookies."
+    },
+    "terms": {
+      "title": "Terms of Service · Trik",
+      "description": "The terms for using Trik, the WhatsApp-first order platform for sellers in Egypt."
     }
   },
   "visual": {
@@ -407,5 +416,229 @@
     "title": "Your orders, Trik'd.",
     "sub": "Message us on WhatsApp and we will set Trik up with you, on the number your customers already know.",
     "note": "A real person answers, in Arabic or English."
+  },
+  "legal": {
+    "updated": "Last updated {date}",
+    "version": "Version {v}",
+    "contents": "Contents",
+    "questions": "Questions about this page?",
+    "questionsBody": "Message us on WhatsApp. A real person answers.",
+    "ask": "Ask us on WhatsApp",
+    "privacy": {
+      "eyebrow": "Privacy",
+      "title": "Privacy Policy",
+      "intro": "What Trik collects, why, who sees it, and what you can ask us to do with it. In plain words.",
+      "sections": [
+        {
+          "title": "Who we are",
+          "paragraphs": [
+            "Trik (trik.chat) is software for online sellers: a shared WhatsApp inbox, order confirmation and refusal risk. In this policy, \"we\" means Trik and \"you\" means the seller using Trik, or anyone whose data reaches us.",
+            "You can reach us on WhatsApp from any page of this site."
+          ],
+          "items": []
+        },
+        {
+          "title": "Two kinds of data, two roles",
+          "paragraphs": [
+            "Your account: when you sign up and use Trik, we decide how that data is used, and this policy explains how.",
+            "Your customers: the conversations and orders you bring into Trik belong to your business. You decide what happens to them, and we handle them only to run Trik for you, following your instructions. If you're one of a seller's customers, the seller is the first place to ask about your data, and we'll help them answer."
+          ],
+          "items": []
+        },
+        {
+          "title": "What we collect",
+          "paragraphs": [],
+          "items": [
+            "Account: your name, email address and password (stored only as a one-way hash, never readable), your language, and your workspaces and team roles.",
+            "Security records: your signed-in sessions (IP address, browser or device) and a log of team and settings changes (who did what, when, and from which IP address).",
+            "What you connect: WhatsApp conversations (customer phone numbers, names and messages), orders from your store (customer name, phone, address, items, amounts and delivery status), and your notes and confirmations.",
+            "Connections: the access keys to your stores and WhatsApp numbers. We store them encrypted.",
+            "This website: trik.chat sets no cookies and uses no analytics or trackers. The contact buttons open WhatsApp, where WhatsApp's own policy applies."
+          ]
+        },
+        {
+          "title": "How we use it",
+          "paragraphs": [],
+          "items": [
+            "To run Trik: show your inbox, confirm orders, sync them with your store and update their status.",
+            "To score refusal risk: a score from your own orders and customers only. We never pool one seller's data with another's.",
+            "To send account emails: confirming your address, resetting your password, and team invitations.",
+            "To keep Trik secure, prevent abuse and give you support.",
+            "We don't sell personal data, and we don't use it for advertising."
+          ]
+        },
+        {
+          "title": "Our reasons (legal bases)",
+          "paragraphs": [
+            "We use account data to provide the service you signed up for (our contract with you), to keep Trik secure (our legitimate interest), and when the law requires it. For your customers' data, we follow your instructions. You make sure you have the right to use it, including your customers' consent where the law or WhatsApp's rules require it."
+          ],
+          "items": []
+        },
+        {
+          "title": "Who we share it with",
+          "paragraphs": [
+            "Only the service providers that run Trik, each for its own part, and only when needed:"
+          ],
+          "items": [
+            "Hosting: servers rented from a hosting provider (Hostinger), where Trik and its database run.",
+            "Network and protection: Cloudflare, which carries the traffic to trik.chat and protects it. It may also store our encrypted backups.",
+            "Email: Resend, which sends our account emails.",
+            "WhatsApp: Meta and our WhatsApp Business provider, when you connect a number.",
+            "Stores: Shopify or EasyOrders, only when you connect them, to read and update your orders.",
+            "Authorities: when the law requires it. We push back on requests that go further than that."
+          ]
+        },
+        {
+          "title": "Where your data is",
+          "paragraphs": [
+            "Our servers are outside Egypt. Data travels encrypted, and our providers are bound to protect it. Where the law requires further safeguards or permits for these transfers, we put them in place."
+          ],
+          "items": []
+        },
+        {
+          "title": "How long we keep it",
+          "paragraphs": [],
+          "items": [
+            "Account and workspace data: for as long as your account or workspace is open.",
+            "When you close a workspace or ask us to delete data: we remove it from our live systems within 30 days. Encrypted backups age out within about 5 weeks after that.",
+            "Security records: while the workspace exists, so you can see who changed what."
+          ]
+        },
+        {
+          "title": "How we protect it",
+          "paragraphs": [],
+          "items": [
+            "Encryption in transit (HTTPS) everywhere.",
+            "Each workspace's data is kept apart in the database itself, not only in the app.",
+            "Access keys and credentials are encrypted. Passwords are stored only as hashes.",
+            "Continuous, encrypted backups, which we test by restoring them.",
+            "Access to production systems is limited to the people who need it."
+          ]
+        },
+        {
+          "title": "Your rights",
+          "paragraphs": [
+            "You can ask to see, correct, export or delete your personal data, or object to how we use it. Message us on WhatsApp and we will answer within 30 days. We may need to confirm who you are first.",
+            "If you're a seller's customer, ask the seller. When a Shopify store receives a privacy request, Trik handles it automatically: it prepares the data for the seller, or erases it."
+          ],
+          "items": []
+        },
+        {
+          "title": "Children",
+          "paragraphs": [
+            "Trik is for businesses. It is not meant for anyone under 18."
+          ],
+          "items": []
+        },
+        {
+          "title": "Changes to this policy",
+          "paragraphs": [
+            "When we change this policy, we update this page and its date. If a change matters to how your data is used, we'll tell you in Trik or by email before it applies."
+          ],
+          "items": []
+        }
+      ]
+    },
+    "terms": {
+      "eyebrow": "Terms",
+      "title": "Terms of Service",
+      "intro": "The agreement between you and Trik when you use it. Short, and in plain words.",
+      "sections": [
+        {
+          "title": "Agreeing to these terms",
+          "paragraphs": [
+            "These terms apply when you use Trik (trik.chat and the Trik app). By creating an account or using Trik, you agree to them. If you use Trik for a business, you confirm you may agree on its behalf."
+          ],
+          "items": []
+        },
+        {
+          "title": "The service",
+          "paragraphs": [
+            "Trik helps sellers run their orders over WhatsApp: a shared inbox, order confirmation, store connections and a refusal risk score. We improve Trik all the time, so features may change. Features marked as early or pilot are offered as they are while we finish them."
+          ],
+          "items": []
+        },
+        {
+          "title": "Your account and your team",
+          "paragraphs": [],
+          "items": [
+            "Give accurate details, and keep your password to yourself.",
+            "You're responsible for what happens in your workspace, including what the people you invite do with the roles you give them.",
+            "Tell us straight away if you think someone else has got into your account."
+          ]
+        },
+        {
+          "title": "Your data",
+          "paragraphs": [
+            "Your data stays yours. You allow us to use it only to run Trik for you, as our Privacy Policy describes. You're responsible for having the right to use your customers' data, and for their consent to be contacted on WhatsApp where needed."
+          ],
+          "items": []
+        },
+        {
+          "title": "WhatsApp and your stores",
+          "paragraphs": [
+            "When you connect WhatsApp or a store, their own terms apply too:"
+          ],
+          "items": [
+            "Follow WhatsApp's Business and Commerce policies. Meta can limit or block a number that breaks them, and Trik can't undo that.",
+            "Meta and the WhatsApp provider may charge for conversations. These charges are shown to you or included in your plan.",
+            "Follow your store platform's terms. Trik acts on your orders as you set it to."
+          ]
+        },
+        {
+          "title": "What you must not do",
+          "paragraphs": [],
+          "items": [
+            "Send spam, or message people who haven't agreed to hear from you.",
+            "Sell or promote illegal goods, or use Trik for fraud or harassment.",
+            "Try to break, overload or get around Trik's security, or reach other workspaces' data.",
+            "Copy or reverse-engineer Trik, or resell it without our written agreement."
+          ]
+        },
+        {
+          "title": "Plans and fees",
+          "paragraphs": [
+            "Plans and prices are on our pricing page. Pilot sellers may use Trik for free while the pilot lasts. We'll tell you before we start charging. If prices change, we'll tell you at least 30 days before."
+          ],
+          "items": []
+        },
+        {
+          "title": "Availability and support",
+          "paragraphs": [
+            "We work to keep Trik running and fast, and we back it up continuously. Still, it may sometimes be down for maintenance or problems outside our control. We don't promise it will never be. Support is on WhatsApp."
+          ],
+          "items": []
+        },
+        {
+          "title": "Suspending or closing an account",
+          "paragraphs": [
+            "You can stop using Trik at any time. Ask us before you leave if you want a copy of your data. We may suspend or close an account that breaks these terms, puts others at risk or goes unpaid, and we will tell you why unless the law prevents it."
+          ],
+          "items": []
+        },
+        {
+          "title": "Responsibility",
+          "paragraphs": [
+            "The risk score and Trik's suggestions are estimates to help you decide. Whether to ship, cancel or call a customer is always your choice.",
+            "As far as the law allows, we are not responsible for indirect losses such as lost profit or lost orders. Our total responsibility is limited to what you paid us in the 12 months before the problem. Nothing here limits rights that the law gives you."
+          ],
+          "items": []
+        },
+        {
+          "title": "Changes to these terms",
+          "paragraphs": [
+            "We'll update these terms as Trik grows, and change the date on this page. We'll tell you about important changes before they apply. If you keep using Trik after that, you accept them."
+          ],
+          "items": []
+        },
+        {
+          "title": "Law",
+          "paragraphs": [
+            "These terms are governed by the laws of the Arab Republic of Egypt. If we can't settle a disagreement together, the courts of Cairo will decide it."
+          ],
+          "items": []
+        }
+      ]
+    }
   }
 }

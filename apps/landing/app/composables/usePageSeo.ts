@@ -1,4 +1,4 @@
-type SeoKey = 'home' | 'features' | 'how' | 'pricing'
+type SeoKey = 'home' | 'features' | 'how' | 'pricing' | 'privacy' | 'terms'
 
 /** Title, description and social tags for a page, in the current language. */
 export function usePageSeo(key: SeoKey, override?: { title?: string; description?: string }) {
