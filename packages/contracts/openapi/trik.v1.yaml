@@ -2759,6 +2759,42 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /commerce/easyorders/install:
+    post:
+      operationId: installEasyOrders
+      summary: Start connecting an EasyOrders store
+      tags:
+      - Commerce
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      x-permission: commerce.stores.manage
+      description: 'Requires `commerce.stores.manage`. Returns EasyOrders'' authorized-app link to send the browser to. When the seller accepts, EasyOrders creates an API key (`orders:read,orders:update`) and the order webhooks, then POSTs `{api_key, store_id}` to `POST /webhooks/easyorders/install/{token}`: the token is single-use, lives 30 minutes and remembers the workspace and the member, whose permission is checked again. The webhook URL carries the store''s own token (only its SHA-256 is kept). EasyOrders signs neither, so every webhook is only a hint: Trik reads the order back with the store''s key. EasyOrders has no way to list orders, so there is no backfill. 10 per minute. Returns 404 where store connectors are not rolled out yet.'
+      responses:
+        '200':
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                    - install_url
+                    properties:
+                      install_url:
+                        type: string
+                        format: uri
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /commerce/stores/{store}:
     patch:
       operationId: updateStore
@@ -2786,19 +2822,22 @@ paths:
               properties:
                 settings:
                   type: object
-                  description: What Trik writes back to the store.
+                  minProperties: 1
+                  additionalProperties: false
                   properties:
                     tag_orders:
                       type: boolean
-                      description: Tag orders `trik-confirmed` / `trik-cancelled` (default on)
+                      description: 'Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on)'
                     write_address:
                       type: boolean
-                      description: Send an address fixed in Trik to the store, keeping its name and phone (default on)
+                      description: 'Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on'
                     cancel_in_store:
                       type: boolean
-                      description: Cancel the order in the store (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)
-                  additionalProperties: false
-                  minProperties: 1
+                      description: 'Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)'
+                    write_status:
+                      type: boolean
+                      description: 'EasyOrders: set the order status to `confirmed` / `canceled` (default on)'
+                  description: Only the store's platform keys are accepted (422 otherwise).
       responses:
         '200':
           description: The store
@@ -2859,7 +2898,7 @@ paths:
           type: string
           format: uuid
       x-permission: commerce.stores.manage
-      description: 'Requires `commerce.stores.manage`. Runs after a failure, or once Shopify grants `read_all_orders` (90 days instead of 60). Safe to repeat: imports are idempotent and never overwrite a newer version of an order. Imported orders placed more than 48 hours ago are never sent a confirmation message. 409 `store-not-connected`, `backfill-running`. Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
+      description: 'Requires `commerce.stores.manage`. Runs after a failure, or once Shopify grants `read_all_orders` (90 days instead of 60). Safe to repeat: imports are idempotent and never overwrite a newer version of an order. Imported orders placed more than 48 hours ago are never sent a confirmation message. 409 `store-not-connected`, `backfill-running`, `backfill-unsupported` (EasyOrders: no way to list past orders). Returns 404 where store connectors are not rolled out yet (feature flag `commerce`).'
       responses:
         '202':
           description: Queued
@@ -4100,6 +4139,7 @@ components:
           type: string
           examples:
           - laila-fashion.myshopify.com
+          description: 'Shopify: the myshopify.com domain. EasyOrders: the store id'
         name:
           type:
           - string
@@ -4148,6 +4188,7 @@ components:
               - importing
               - done
               - failed
+              - unsupported
             since:
               type:
               - string
@@ -4175,21 +4216,20 @@ components:
               - 'null'
         settings:
           type: object
-          description: What Trik writes back to the store.
+          description: What Trik writes back to the store; the keys depend on the platform.
           properties:
             tag_orders:
               type: boolean
-              description: Tag orders `trik-confirmed` / `trik-cancelled` (default on)
+              description: 'Shopify: tag orders `trik-confirmed` / `trik-cancelled` (default on)'
             write_address:
               type: boolean
-              description: Send an address fixed in Trik to the store, keeping its name and phone (default on)
+              description: 'Shopify: send a fixed address as the shipping address, keeping its name and phone. EasyOrders: add it as a private order note (its API cannot edit addresses). Default on'
             cancel_in_store:
               type: boolean
-              description: Cancel the order in the store (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)
-          required:
-          - tag_orders
-          - write_address
-          - cancel_in_store
+              description: 'Shopify: cancel the order there (restocked, no refund, customer not emailed) when it is cancelled in Trik (default off)'
+            write_status:
+              type: boolean
+              description: 'EasyOrders: set the order status to `confirmed` / `canceled` (default on)'
     PrivacyRequest:
       title: PrivacyRequest
       type: object

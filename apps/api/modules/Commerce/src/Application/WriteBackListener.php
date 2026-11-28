@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Commerce\Application;
 
+use Modules\Commerce\Application\Jobs\WriteBackEasyOrdersOrder;
 use Modules\Commerce\Application\Jobs\WriteBackShopifyOrder;
 use Modules\Orders\Application\Events\OrderChanged;
 use Modules\Orders\Application\OrderReader;
@@ -29,10 +30,14 @@ final class WriteBackListener
             $event->change === 'address_fixed' => 'address',
             default => null,
         };
-        if ($what === null || $this->orders->find($event->orderId)?->source !== 'shopify') {
+        if ($what === null) {
             return;
         }
 
-        WriteBackShopifyOrder::dispatch($event->workspaceId, $event->orderId, $what);
+        match ($this->orders->find($event->orderId)?->source) {
+            'shopify' => WriteBackShopifyOrder::dispatch($event->workspaceId, $event->orderId, $what),
+            'easyorders' => WriteBackEasyOrdersOrder::dispatch($event->workspaceId, $event->orderId, $what),
+            default => null,
+        };
     }
 }

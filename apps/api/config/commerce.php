@@ -37,4 +37,20 @@ return [
         // HTTP timeouts for Shopify calls, in seconds.
         'timeout' => (int) env('SHOPIFY_TIMEOUT', 15),
     ],
+
+    'easyorders' => [
+        'base_url' => env('EASYORDERS_BASE_URL', 'https://api.easy-orders.net/api/v1/external-apps'),
+        'install_url' => env('EASYORDERS_INSTALL_URL', 'https://app.easy-orders.net/#/install-app'),
+        // Shown on EasyOrders' install screen.
+        'app_name' => env('EASYORDERS_APP_NAME', 'Trik'),
+        'app_description' => env('EASYORDERS_APP_DESCRIPTION', 'Trik confirms your cash-on-delivery orders on WhatsApp. | تريك بيأكد طلبات الدفع عند الاستلام على واتساب.'),
+        'app_icon' => env('EASYORDERS_APP_ICON'),
+        // What Trik asks for: read orders, update their status and add notes.
+        'permissions' => 'orders:read,orders:update',
+        // EasyOrders allows 40 calls a minute per key; Trik keeps under it.
+        'calls_per_minute' => (int) env('EASYORDERS_CALLS_PER_MINUTE', 35),
+        // An install link works this long.
+        'install_ttl_seconds' => 1800,
+        'timeout' => (int) env('EASYORDERS_TIMEOUT', 15),
+    ],
 ];

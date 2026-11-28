@@ -315,6 +315,24 @@ landed = sql(f"select string_agg(distinct workspace_id::text, ',') from orders_o
 # processed only where a queue worker runs: never in another workspace
 check("the order never lands in another workspace", landed in ("", A["ws"]), f"landed in {landed}")
 
+# ---------------- EasyOrders
+r = call("POST", "/v1/commerce/easyorders/install", AGENT["token"], A["ws"])
+check("an agent cannot start an EasyOrders install", r.status_code == 403, r.status_code)
+r = call("POST", f"/webhooks/easyorders/install/{uuid.uuid4().hex}{uuid.uuid4().hex[:16]}", body={"api_key": "attacker", "store_id": str(uuid.uuid4())})
+check("a forged EasyOrders install callback is refused", r.status_code == 404, f"{r.status_code} {r.text[:120]}")
+r = call("POST", f"/webhooks/easyorders/{uuid.uuid4().hex}{uuid.uuid4().hex[:16]}", body={"id": str(uuid.uuid4())})
+check("an unknown EasyOrders webhook URL is refused", r.status_code == 404, r.status_code)
+r = call("POST", "/v1/commerce/easyorders/install", A["token"], A["ws"])
+eo_url = r.json().get("data", {}).get("install_url", "") if r.status_code == 200 else ""
+check("the EasyOrders install link only points at EasyOrders", eo_url.startswith("https://app.easy-orders.net/#/install-app?"), eo_url[:80])
+eo_store = str(uuid.uuid4())
+sql(f"insert into commerce_stores (id, workspace_id, platform, shop_domain, scopes, status, backfill, settings, created_at, updated_at) "
+    f"values ('{eo_store}', '{A['ws']}', 'easyorders', '{uuid.uuid4()}', 'orders:read', 'active', '{{}}', '{{}}', now(), now())")
+r = call("PATCH", f"/v1/commerce/stores/{eo_store}", A["token"], A["ws"], {"settings": {"cancel_in_store": True}})
+check("a setting of another platform is refused", r.status_code == 422, f"{r.status_code} {r.text[:120]}")
+r = call("PATCH", f"/v1/commerce/stores/{eo_store}", B["token"], B["ws"], {"settings": {"write_status": False}})
+check("another workspace cannot change an EasyOrders store (IDOR)", r.status_code == 404, r.status_code)
+
 # ---------------- privacy requests (Shopify's mandatory webhooks)
 def privacy_hook(topic, payload, secret=None, delivery=None):
     raw = json.dumps({"shop_id": 1, "shop_domain": SHOP, **payload})

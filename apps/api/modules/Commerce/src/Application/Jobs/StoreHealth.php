@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Modules\Commerce\Application\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Modules\Commerce\Application\Shopify\ShopifyCallFailed;
+use Modules\Commerce\Application\StoreCallFailed;
 use Modules\Commerce\Domain\StoreStatus;
 use Modules\Commerce\Infrastructure\Models\Store;
 
-/** What a store job does when a Shopify call fails (see ShopifyCallFailed). */
+/** What a store job does when a Shopify call fails (see StoreCallFailed). */
 final class StoreHealth
 {
     /** @param ShouldQueue $job a queued job using InteractsWithQueue (it can release itself) */
-    public static function afterFailure(Store $store, ShopifyCallFailed $e, ShouldQueue $job): void
+    public static function afterFailure(Store $store, StoreCallFailed $e, ShouldQueue $job): void
     {
         if ($e->unauthorized) {
             // the seller removed the app (the app/uninstalled webhook may still be on its way)

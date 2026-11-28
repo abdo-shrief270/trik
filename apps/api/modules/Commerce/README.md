@@ -113,6 +113,32 @@ Each write, or Shopify's refusal, lands on the order timeline (`store_updated`, 
 retry; a revoked token marks the store uninstalled. **No loops:** `OrderChanged` carries an `origin`; changes Trik applied
 from a store (`RecordOrder`) have it set and are never written back, so Shopify's own `orders/updated` echo stops there.
 
+## EasyOrders (#117)
+
+Built from EasyOrders' public API docs (https://public-api-docs.easy-orders.net). What they offer shapes it:
+
+- **Connect:** `POST /v1/commerce/easyorders/install` returns EasyOrders' *authorized app link*
+  (`app.easy-orders.net/#/install-app?…`). The seller accepts; EasyOrders creates an API key (`orders:read,orders:update`)
+  and the order webhooks, and POSTs `{api_key, store_id}` to `POST /webhooks/easyorders/install/{token}`. EasyOrders signs
+  nothing, so the token in that URL is the authentication: random, single use, 30 minutes, tied to the workspace and the
+  member (whose permission is checked again). The key is stored encrypted. One active connection per EasyOrders store.
+- **Webhooks:** `POST /webhooks/easyorders/{token}` (order created, order status changed), routed by the SHA-256 of the
+  store's own token (`commerce_store_by_hook()`, active stores only). A webhook set up by hand sends EasyOrders' `secret`
+  header; store it in `webhook_secret` and it is checked. **The body is never trusted:** only the order id is taken, and
+  `RefreshEasyOrdersOrder` reads the order back with the store's key (EasyOrders' own integration guide does the same), checks
+  it belongs to the store, and imports it (versioned, like Shopify). Deliveries are de-duplicated by body hash (EasyOrders
+  sends no delivery id).
+- **Mapping:** statuses (`confirmed`, `processing`/`waiting_for_pickup` → ready to ship, `in_delivery` → shipped, `delivered`,
+  `canceled`, returns and refunds → returned; `pending` and payment states left to Trik); `cod` vs anything else or `paid` →
+  prepaid; the discount from `cost + shipping_cost − total_cost`; the free-text `government` through `Governorate::fromName()`;
+  variants as "color: أزرق · size: M".
+- **Write-back** (settings `write_status`, `write_address`, both on): confirmed / canceled through
+  `PATCH /orders/:id/status`; a fixed address as a **private order note** (the API can't edit addresses).
+- **Limits:** EasyOrders allows 40 calls a minute per key; the client keeps each store under 35 (`EASYORDERS_CALLS_PER_MINUTE`)
+  and releases the job until the next minute. 401/403 mark the store uninstalled.
+- **No backfill:** the API has no way to list orders (`backfill-unsupported`). New orders arrive from the moment of install.
+
 ## Not yet
 
-Products and stock; editing items from chat (`PATCH /orders` doesn't change items yet).
+Products and stock; editing items from chat (`PATCH /orders` doesn't change items yet); an EasyOrders backfill if they add a
+list endpoint.
