@@ -23,7 +23,9 @@ describe('problemMessageKey', () => {
   it.each([
     [{ status: 0, code: 'network' }, 'errors.network'],
     [{ status: 503, code: 'unavailable' }, 'errors.unavailable'],
-    [{ status: 403, code: 'owner-only' }, 'errors.forbidden'],
+    [{ status: 403, code: 'cannot-assign' }, 'errors.forbidden'],
+    [{ status: 403, code: 'owner-only' }, 'errors.owner-only'],
+    [{ status: 409, code: 'already-a-member' }, 'errors.already-a-member'],
     [{ status: 404, code: 'member-not-found' }, 'errors.not-found'],
     [{ status: 429, code: 'whatever' }, 'errors.rate-limited'],
     [{ status: 500, code: 'boom' }, 'errors.server-error'],
