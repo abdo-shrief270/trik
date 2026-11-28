@@ -38,10 +38,12 @@ real time). The server's IP is never published: Cloudflare is in front before th
    - once verified, the SMTP host, user and password go into the vault (`mail_smtp_*`).
    Without it, `MAIL_MAILER=log`: nobody can verify their email, so keep sign-up to people you set up by hand.
 5. **GitHub**:
-   - A fine-grained token with *packages: read* for the server (`ghcr_token`).
+   - A token for the server to pull images (`ghcr_token`): a classic token with only `read:packages` (fine-grained
+     tokens don't cover the container registry).
    - An SSH key pair for CI: `ssh-keygen -t ed25519 -f trik-ci -C trik-ci`. The private key goes in the
      repository secret `DEPLOY_SSH_KEY`, the public key in `ci_deploy_key` (vars.yml).
-   - Environment **production**: add yourself as a required reviewer (each release waits for your approval).
+   - Environment **production** (Settings → Environments; the workflow creates it otherwise). No reviewers needed:
+     a version only goes live when you publish its release (see Releases).
 6. **Ansible** (from any machine with Ansible ≥ 2.17 and the `community.general` and `ansible.posix` collections):
    ```bash
    cd infra/ansible
@@ -53,7 +55,8 @@ real time). The server's IP is never published: Cloudflare is in front before th
    From then on root SSH is off: `-e ansible_user=deploy`.
 7. **Deploy secrets in GitHub**: `DEPLOY_HOST` (the IP), `DEPLOY_KNOWN_HOSTS`
    (`ssh-keyscan -t ed25519 <ip>`), and the variables `WHATSAPP_NUMBER` and `DEPLOY_ENABLED=true`.
-   Run the **Deploy** workflow. The first run creates the database, its three roles and all tables.
+   Then publish the first release, **v1.0.0** (see Releases). Its deploy creates the database, its three roles and all
+   tables.
 8. **DNS** in Cloudflare, all **proxied** (orange cloud): `A trik.chat → <ip>`, `CNAME www → trik.chat`,
    `A app → <ip>`, `A api → <ip>`. Check `https://trik.chat`, `https://app.trik.chat` and
    `https://api.trik.chat/readyz`.
@@ -64,8 +67,20 @@ real time). The server's IP is never published: Cloudflare is in front before th
 
 ## Releases
 
-Merging to `main` builds `trik-api` and `trik-edge` (tag = first 12 characters of the commit), waits for
-approval in the *production* environment, then runs `deploy.sh <tag>` on the server:
+**A version goes live when you publish a GitHub release.** Merging to `main` doesn't deploy anything.
+
+1. **Releases → Draft a new release → Choose a tag** → type the next version, e.g. `v1.2.0` → *Create new tag on
+   publish*, **target `main`**.
+2. **Generate release notes** (GitHub lists the merged PRs since the last release), adjust if you like.
+3. **Publish release.** The Deploy workflow builds `trik-api` and `trik-edge` tagged `v1.2.0` and puts them live.
+
+Versions: `vMAJOR.MINOR.PATCH`: patch for fixes, minor for features, major for breaking changes. The workflow refuses a
+tag in another shape, or one that points at a commit that isn't on `main` (only reviewed code ships).
+
+**Pre-releases** (`v1.3.0-rc1`, tick *Set as a pre-release*) build the images but never go live: test them first, then
+publish the final release.
+
+On the server, `deploy.sh <tag>`:
 
 1. pull the images;
 2. `migrate` as the owner role (a failure stops here; the running release is untouched);
@@ -76,15 +91,19 @@ approval in the *production* environment, then runs `deploy.sh <tag>` on the ser
 **Migrations must keep the previous release working** (add columns and tables first; remove them in a
 later release), because a rollback does not undo them.
 
-## Rollback by hand
+## Choosing the production release (and rolling back)
+
+**Actions → Deploy → Run workflow → release:** type any published release, e.g. `v1.1.0`. It must be a full release
+(not a draft or pre-release) whose images were built when it was published. To roll back, choose the previous one.
+
+By hand on the server:
 
 ```bash
 ssh deploy@<ip>
 cd /srv/trik/infra/production
-./deploy.sh "$(cat .previous_tag)"        # or any earlier commit tag
+cat .live_tag .previous_tag               # what runs now, and before
+./deploy.sh "$(cat .previous_tag)"        # or any earlier release, e.g. v1.1.0
 ```
-
-Or run the **Deploy** workflow with the *tag* input.
 
 ## Everyday commands (on the server, in /srv/trik/infra/production)
 
