@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Modules\Commerce\Application\EasyOrders\EasyOrdersInstall;
 use Modules\Commerce\Application\Jobs\BackfillShopifyOrders;
 use Modules\Commerce\Application\Shopify\ShopifyInstall;
 use Modules\Commerce\Application\StorePresenter;
@@ -48,18 +49,25 @@ final class StoreController
         ]]);
     }
 
-    /** What Trik writes back to the store (Store::SETTINGS); only the keys given change. */
+    /** Connecting EasyOrders: where to send the browser (EasyOrders' authorized-app screen). */
+    public function installEasyOrders(Request $request, EasyOrdersInstall $install, TenantContext $tenant): JsonResponse
+    {
+        return response()->json(['data' => [
+            'install_url' => $install->start($tenant->require(), (string) $request->user()?->getAuthIdentifier()),
+        ]]);
+    }
+
+    /** What Trik writes back to the store (Store::SETTINGS for its platform); only the keys given change. */
     public function update(Request $request, string $store): JsonResponse
     {
+        $model = $this->find($store);
+        $keys = array_keys($model->settingDefaults());
+
         $data = $request->validate([
-            'settings' => ['required', 'array:'.implode(',', array_keys(Store::SETTINGS))],
-            ...array_combine(
-                array_map(fn (string $k): string => "settings.{$k}", array_keys(Store::SETTINGS)),
-                array_fill(0, count(Store::SETTINGS), ['sometimes', 'boolean']),
-            ),
+            'settings' => ['required', 'array:'.implode(',', $keys)],
+            ...array_combine(array_map(fn (string $k): string => "settings.{$k}", $keys), array_fill(0, count($keys), ['sometimes', 'boolean'])),
         ]);
 
-        $model = $this->find($store);
         $model->update(['settings' => [...$model->effectiveSettings(), ...array_map(fn (mixed $v): bool => (bool) $v, $data['settings'])]]);
 
         return response()->json(['data' => $this->presenter->present($model)]);
@@ -82,7 +90,10 @@ final class StoreController
     {
         $model = $this->find($store);
 
-        if ($model->status !== StoreStatus::Active || $model->platform !== Platform::Shopify) {
+        if ($model->platform !== Platform::Shopify) {
+            throw Problem::conflict('backfill-unsupported', 'This platform has no way to list past orders; new orders arrive as they are placed.');
+        }
+        if ($model->status !== StoreStatus::Active) {
             throw Problem::conflict('store-not-connected', 'Reconnect the store first.');
         }
         if (in_array($model->backfill['status'] ?? null, ['running', 'importing'], true)) {

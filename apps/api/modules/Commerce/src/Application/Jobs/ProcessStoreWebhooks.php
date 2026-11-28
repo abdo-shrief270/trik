@@ -13,6 +13,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Commerce\Application\Shopify\ShopifyWebhookHandler;
+use Modules\Commerce\Domain\Platform;
+use Modules\Commerce\Domain\StoreStatus;
 use Modules\Commerce\Infrastructure\Models\Store;
 use Modules\Commerce\Infrastructure\Models\StoreWebhookEvent;
 use Throwable;
@@ -47,6 +49,21 @@ final class ProcessStoreWebhooks implements ShouldBeUniqueUntilProcessing, Shoul
         return 'commerce-webhooks:'.$this->workspaceId;
     }
 
+    /** EasyOrders deliveries are only a hint which order changed: it is read back with the store's key. */
+    private static function easyOrders(StoreWebhookEvent $event, Store $store): string
+    {
+        if ($store->status !== StoreStatus::Active) {
+            return 'ignored:store-inactive';
+        }
+        $orderId = $event->payload['order_id'] ?? $event->payload['id'] ?? null;
+        if (! is_string($orderId) || ! Str::isUuid($orderId)) {
+            return 'skipped:no-order';
+        }
+        RefreshEasyOrdersOrder::dispatch($store->workspace_id, $store->id, strtolower($orderId))->afterCommit();
+
+        return 'refresh-queued';
+    }
+
     public function handle(ShopifyWebhookHandler $shopify, TenantContext $context): void
     {
         $context->run($this->workspaceId, function () use ($shopify): void {
@@ -72,7 +89,11 @@ final class ProcessStoreWebhooks implements ShouldBeUniqueUntilProcessing, Shoul
                         $outcome = DB::transaction(function () use ($shopify, $event): string {
                             $store = Store::query()->find($event->store_id);
 
-                            return $store === null ? 'ignored:store-gone' : $shopify->handle($event, $store);
+                            return match (true) {
+                                $store === null => 'ignored:store-gone',
+                                $store->platform === Platform::EasyOrders => self::easyOrders($event, $store),
+                                default => $shopify->handle($event, $store),
+                            };
                         });
                         $event->update(['processed_at' => now(), 'outcome' => Str::limit($outcome, 40, ''), 'attempts' => $event->attempts + 1, 'last_error' => null]);
                     } catch (Throwable $e) {
