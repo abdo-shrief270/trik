@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@import "../../../../../packages/design-tokens/tokens.css";
+
+@theme {
+  --color-ink: var(--trik-color-ink);
+  --color-ink-2: #1E1B2E;
+  --color-ink-3: #2A2740;
+  --color-indigo: var(--trik-color-indigo);
+  --color-indigo-strong: var(--trik-color-indigo-strong);
+  --color-indigo-soft: var(--trik-color-indigo-soft);
+  --color-lime: var(--trik-color-lime);
+  --color-paper: var(--trik-color-paper);
+  --color-muted: var(--trik-color-muted);
+  --color-line: var(--trik-color-border);
+  --color-mist: #C9C6D6;
+  --color-dusk: #8C88A8;
+  --color-success: var(--trik-color-success);
+  --color-success-bg: var(--trik-color-success-bg);
+  --color-warning: var(--trik-color-warning);
+  --color-warning-bg: var(--trik-color-warning-bg);
+  --color-danger: var(--trik-color-danger);
+  --color-danger-bg: var(--trik-color-danger-bg);
+  --font-display: 'Space Grotesk', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-sans: 'Inter', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Arabic: one family for everything, so mixed lines look even (brand book, typography). */
+html[dir="rtl"] body,
+html[dir="rtl"] .font-display { font-family: var(--font-arabic); letter-spacing: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+/* Decorative glows and the marquee run past the edges; never let them widen the page. clip keeps sticky working. */
+html, body { overflow-x: clip; }
+body {
+  background: var(--trik-color-paper);
+  color: var(--trik-color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--trik-color-indigo); color: #fff; }
+:focus-visible { outline: 3px solid var(--trik-color-indigo); outline-offset: 3px; border-radius: 6px; }
+.on-dark :focus-visible { outline-color: var(--trik-color-lime); }
+
+/* Lenis smooth scroll */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+/* Page transitions */
+.page-enter-active, .page-leave-active { transition: opacity .35s var(--ease-out-expo), transform .35s var(--ease-out-expo); }
+.page-enter-from { opacity: 0; transform: translateY(12px); }
+.page-leave-to { opacity: 0; transform: translateY(-8px); }
+
+/* Reveal on scroll (v-reveal). Content stays visible without JS: .js is set by the motion plugin. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .9s var(--ease-out-expo), transform .9s var(--ease-out-expo);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.js [data-reveal].is-in { opacity: 1; transform: none; }
+
+/* Word-by-word headline */
+.split-word { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; }
+.split-word > span { display: inline-block; transform: translateY(105%); animation: word-up .9s var(--ease-out-expo) forwards; animation-delay: var(--d, 0ms); }
+@keyframes word-up { to { transform: none; } }
+
+/* Tick drawing */
+.tick-draw path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: tick-draw .6s var(--ease-out-expo) forwards; }
+.tick-draw path:nth-child(2) { animation-delay: .25s; }
+.tick-draw path:nth-child(3) { animation-delay: .5s; }
+@keyframes tick-draw { to { stroke-dashoffset: 0; } }
+
+/* Marquee */
+.marquee { display: flex; width: max-content; will-change: transform; contain: layout paint; animation: marquee var(--marquee-speed, 40s) linear infinite; }
+.marquee:hover, .marquee.is-paused { animation-play-state: paused; }
+[dir="rtl"] .marquee { animation-name: marquee-rtl; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes marquee-rtl { to { transform: translateX(50%); } }
+
+/* Typing dots */
+.typing span { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; display: inline-block; animation: typing 1.2s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+/* Spotlight card (pointer position in --mx / --my) */
+.spotlight { position: relative; isolation: isolate; }
+.spotlight::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; opacity: 0;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(79 59 240 / .12), transparent 60%);
+  transition: opacity .3s;
+}
+.spotlight:hover::before { opacity: 1; }
+
+/* Ambient glow for dark sections. Static on purpose: a radial mask (not filter: blur) that never animates.
+   Measured: an animated glow cost ~1.7 s of main-thread time in the first 6 s on a GPU-less device. */
+.glow {
+  position: absolute; border-radius: 9999px; pointer-events: none;
+  -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / .45) 45%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / .45) 45%, transparent 100%);
+}
+@keyframes float { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(40px, -30px, 0) scale(1.1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .js [data-reveal] { opacity: 1; transform: none; }
+  .split-word > span { transform: none; }
+  .marquee { animation: none; }
+}

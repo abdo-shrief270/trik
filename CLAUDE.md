@@ -21,7 +21,8 @@ ones, and expects security, load and edge cases checked before he merges.
 
 - **API:** Laravel 13 on PHP 8.5, Octane (FrankenPHP in prod, Swoole locally/CI), Sanctum, Pest, Larastan
   level 8, Pint. PostgreSQL 19, Redis 8. `apps/api`.
-- **Web:** Nuxt 4 (`apps/web`). **Mobile:** Flutter (`apps/mobile`). **Go services** for hot paths later (`services/`).
+- **Web:** Nuxt 4 (`apps/web`). **Landing:** static Nuxt 4 + GSAP/Lenis (`apps/landing`, trik.chat).
+  **Mobile:** Flutter (`apps/mobile`). **Go services** for hot paths later (`services/`).
 - **Hosting:** Hostinger VPS first, AWS later (ADR 0011). WhatsApp through a BSP (360dialog) first (ADR 0009).
 
 ## Backend architecture (apps/api)
@@ -114,16 +115,14 @@ Done and merged on `main`:
 - the WhatsApp provider layer (360dialog / Meta Cloud / Fake, partitioned storage, batch webhook drain);
 - permissions and roles;
 - ADRs 0010–0012 and the security review;
-- organizations above workspaces (#366), and organization roles, people and audit logs (#367).
+- organizations above workspaces (#366), and organization roles, people and audit logs (#367);
+- inbox conversations + 24 h window (#379), workspace badges (#380), Orders module + order card (#381),
+  confirmation engine (#382) and confirmation board (#383).
 
-Open PRs, stacked; merge in this order (each retargets to `main` by itself):
-1. #379 inbox: one conversation per customer + 24 h window (#56, #60)
-2. #380 per-workspace badges for the switcher (#368)
-3. #381 Orders module + order card in chat + address fix (#105, #344)
-4. #382 confirmation engine over WhatsApp (#106)
-5. #383 confirmation board with bulk actions (#107)
-
-If they're still open when you start, branch from `feat/confirmation-board` (the top of the stack) and target it.
+Marketing site: `apps/landing` (static Nuxt, Arabic first, `/en`), see its README. No waitlist: every call to
+action opens a WhatsApp chat (`NUXT_PUBLIC_WHATSAPP_NUMBER`) until the web app's sign-up is live. No public email
+address yet. Keep the copy in `apps/landing/i18n/locales/{ar,en}.json` in step, and keep the brand rules (lime only
+for "confirmed", never on light).
 
 Next, in order (milestone "MVP · Pilot" first, see `docs/plan/PLAN.md`):
 - **Shopify app (#332).** OAuth install, encrypted tokens, GraphQL Admin client with cost-based limits, HMAC
